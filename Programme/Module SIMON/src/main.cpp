@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include "bouton.h"
+#include "Bouton.h"
 
-bouton bt[4];
+Bouton bt[4];
 
 void setup_bt(int nb_bt);
 void read_bt(int nb_bt);
@@ -76,7 +76,10 @@ void read_bt(int nb_bt){
 }
 
 void sequence_led(int niveau){
-
+//Cette fonction permet de faire une séquence de led
+//Elle prend en paramètre le niveau de la séquence
+if(niveau == 1){
+}
 }
 
 void test_bt_led(){
