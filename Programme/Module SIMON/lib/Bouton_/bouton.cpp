@@ -3,16 +3,16 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "bouton.h"
+#include "Bouton.h"
 
 
 
-bouton::bouton()
+Bouton::Bouton()
 {
     
 }
 
-void bouton::begin(int pin, bool type_bt, int delay_click, int delay_press, int delay_rebond)
+void Bouton::begin(int pin, bool type_bt, int delay_click, int delay_press, int delay_rebond)
 {
     PIN = pin;
     pinMode(pin,INPUT);
@@ -24,7 +24,7 @@ void bouton::begin(int pin, bool type_bt, int delay_click, int delay_press, int 
     TIME_BT = millis();
 }
 
-void bouton::read_Bt()
+void Bouton::read_Bt()
 {
     timer_reset();
     if (d_read() == !TYPE && ETAT == 0)
@@ -44,7 +44,7 @@ void bouton::read_Bt()
     }
 }
 
-bool bouton::click()
+bool Bouton::click()
 {
     if (ETAT == 2)
     {
@@ -53,7 +53,7 @@ bool bouton::click()
     } else return false;
 }
 
-bool bouton::press()
+bool Bouton::press()
 {
     if (ETAT == 3)
     {
@@ -63,28 +63,28 @@ bool bouton::press()
     } else return false;
 }
 
-int bouton::d_read()
+int Bouton::d_read()
 {
     return digitalRead(PIN);
 }
 
-void bouton::reset()
+void Bouton::reset()
 {
     TIME_BT = millis();
 }
 
-bool bouton::timer(int delay)
+bool Bouton::timer(int delay)
 {
     if (millis() > TIME_BT + delay){
         return true;
     } else return false;
 }
 
-int bouton::etat(){
+int Bouton::etat(){
     return ETAT;
 }
 
-void bouton::timer_reset(){
+void Bouton::timer_reset(){
     if(ETAT != 0 && timer(DELAY_RESET)){
         ETAT = 0;
     }

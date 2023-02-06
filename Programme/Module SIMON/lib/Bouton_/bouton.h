@@ -1,10 +1,10 @@
 
 
 
-class bouton{
+class Bouton{
 
     public:
-        bouton();
+        Bouton();
 
         void begin(int pin,bool type_bt,int delay_click,int delay_press,int delay_rebond);
 
