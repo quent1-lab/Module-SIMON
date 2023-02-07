@@ -25,6 +25,7 @@ bool sequence_led(int niveau);
 void algo_led_aleatoire(void);
 void algo_reponse(void);
 void reponse_bt(void);
+void all_led_High(int delai);
 
 #define ROUGE 0
 #define NOIR 1
@@ -37,6 +38,7 @@ void reponse_bt(void);
 
 #define SEQ 0
 #define REP 1
+#define ERR 2
 
 // Définitons des pins des boutons
 const int bt_Jaune = 4;
@@ -80,10 +82,12 @@ int couleur[4][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
 */
 
 unsigned long int time_seq = 0;
+unsigned long int time_rep = 0;
 unsigned long int time_delay_led = 0;
-int delai_seq = 5000;
+int delai_seq = 2000;
 
 int niveau = 0;
+int niveau_max = 4;
 int erreur = 0;
 int numero_seq = 0;
 int ordre_bt = 0;
@@ -110,37 +114,29 @@ void setup()
   algo_reponse();
 
   Serial.begin(9600);
-
-  Serial.printf("sequence : %d %d %d %d , reponse : %d %d %d %d", sequence[1][0], sequence[1][1], sequence[1][2], sequence[1][3], reponse[1][0], reponse[1][1], reponse[1][2], reponse[1][3]);
-  delay(5000);
 }
 
 void loop()
 {
+  read_bt(4);
   switch (etat)
   {
   case INIT:
-    read_bt(4);
+    
     if (bt[JAUNE].click())
       etat = TEST;
     if (bt[NOIR].click()){
       etat = JEU1;
-      for(int k = 0; k < 4; k++){
-        digitalWrite(pin_Led[k], LOW);
-      }
-      digitalWrite(pin_Led[NOIR], HIGH);
-      delay(500);
-      digitalWrite(pin_Led[NOIR], LOW);
+      etat_jeu1 = ERR;
       time_seq = millis();
+      time_delay_led = millis();
     }
       
     break;
   case TEST:
-    read_bt(4);
     test_bt_led(); 
     break;
   case JEU1:
-    read_bt(4);
     switch (etat_jeu1) //ajouter etat erreur
     {
     case SEQ:
@@ -148,12 +144,17 @@ void loop()
         if(numero_seq > niveau){
           numero_seq = 0;
           time_seq = millis();
+          time_rep = millis();
           etat_jeu1 = REP;
         }
       }
       break;
     case REP:
       reponse_bt();
+
+      break;
+    case ERR:
+      all_led_High(1000);
       break;
     }
     break;
@@ -192,16 +193,13 @@ bool sequence_led(int num_seq)
   // Cette fonction permet de faire une séquence de led en fonction du niveau de la difficulté
 
   if(millis() - time_seq > delai_seq){
-      if(millis() - time_delay_led < 1000)
+      if(millis() - time_delay_led < 800)
       {
         digitalWrite(pin_Led[sequence[niveau][numero_seq]], HIGH);
-        Serial.println("*");
         return false;
-      }else if(millis() - time_delay_led > 1500){
+      }else if(millis() - time_delay_led > 1300){
         numero_seq++;
-        Serial.println("**");
         time_delay_led = millis();
-        Serial.println("***");
         return true;
       }else {
         digitalWrite(pin_Led[sequence[niveau][numero_seq]], LOW);
@@ -222,6 +220,15 @@ void reponse_bt()
     }else digitalWrite(pin_Led[k], LOW);
   }
 
+  if(millis() - time_rep > 6000){
+    for(int k = 0; k < 4; k++){
+      digitalWrite(pin_Led[k], LOW);
+    }
+    etat_jeu1 = SEQ;
+    time_seq = millis();
+    ordre_bt = 0;
+  }
+
   for(int k = 0; k < 4; k++){
     if(bt[k].click()){
       if(k == reponse[niveau][ordre_bt]){
@@ -231,25 +238,47 @@ void reponse_bt()
           niveau++;
           etat_jeu1 = SEQ;
           time_seq = millis();
-          if(niveau >= 4){
+          if(niveau >= niveau_max){
             niveau = 0;
             etat = INIT;
+            algo_led_aleatoire();
+            algo_reponse();
           }
         }
       }else{
-        ordre_bt = 0;
-        niveau = 0;
         erreur++;
-        if(erreur > 2){
-          erreur = 0;
-          etat = INIT;
-        }
         algo_reponse();
         time_seq = millis();
-        etat_jeu1 = SEQ;
+        time_delay_led = millis();
+        etat_jeu1 = ERR;
       }
     }
   }
+}
+
+void all_led_High(int delai)
+{
+  // Cette fonction permet d'allumer toutes les leds pendant un temps défini
+
+  if(millis() - time_delay_led < delai){
+    for(int k = 0; k < 4; k++){
+      digitalWrite(pin_Led[k], HIGH);
+    }
+    }else{
+      for(int k = 0; k < 4; k++){
+        digitalWrite(pin_Led[k], LOW);
+      }
+        ordre_bt = 0;
+        niveau = 0;
+        if(erreur > 2){
+          erreur = 0;
+          etat = INIT;
+          algo_led_aleatoire();
+          algo_reponse();
+        }
+      etat_jeu1 = SEQ;
+      time_seq = millis();
+    }
 }
 
 void algo_led_aleatoire()
