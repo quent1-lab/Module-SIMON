@@ -19,9 +19,12 @@ Le jeu est terminé quand le joueur réussi le niveau 5.
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "ArduinoJson.h"
+#include <Wire.h>
+#include "rgb_lcd.h"
 
 Bouton bt[4];
 HTTPClient client[4];
+rgb_lcd lcd;
 
 // Prototype des fonctions
 void setup_bt(int nb_bt);
@@ -61,8 +64,8 @@ const char *pass = "SIMON_23";
 //Définitions des variables pour le serveur
 String url[4] = { "http://192.168.137.1/database/json.php", 
                   "http://192.168.137.1/database/Start_py.bat",
-                  "http://192.168.137.1/database/index.php?niveau=",
-                  "http://192.168.137.1/database/index.php?mode_jeu="};
+                  "http://192.168.137.1/database/request.php?niveau=",
+                  "http://192.168.137.1/database/request.php?mode_jeu="};
 int mini_jeu[4] = {0, 0, 0, 0};
 // mini_jeu : 1er indice : id_module, 2eme indice : niveau_max, 3eme indice : niveau, 4eme indice : mode_jeu
 int etat_serveur = 0;
@@ -76,7 +79,7 @@ const int bt_Vert = 17;
 u_int8_t pin_Bouton[4] = {bt_Rouge, bt_Noir, bt_Vert, bt_Jaune};
 
 // Définitons des pins des lumières
-const int led_Jaune = 21;
+const int led_Jaune = 19;
 const int led_Rouge = 23;
 const int led_Noir = 25;
 const int led_Vert = 26;
@@ -127,6 +130,7 @@ int etat_jeu1 = 0;
 
 void setup()
 {
+  lcd.begin(16, 2);
   setup_bt(4);
 
   for (int k = 0; k < 4; k++)
@@ -171,6 +175,12 @@ void loop()
 {
   read_bt(4);
   server();
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.printf("Niveau : %d", niveau);
+  lcd.setCursor(0, 1);
+  lcd.printf("mode jeu : %d", etat);
 
   switch (etat)  {
   case INIT:
@@ -345,6 +355,7 @@ void request(int nclient, String data)
   client[nclient].begin(url[nclient]);
   client[nclient].GET();
   url[nclient].remove(url[nclient].length() - 1);
+  client[nclient].end();
 }
 
 bool sequence_led(int num_seq)
