@@ -76,12 +76,29 @@ const int bt_NOIR = 16;
 const int bt_VERT = 17;
 u_int8_t button_pin[4] = {bt_ROUGE, bt_NOIR, bt_VERT, bt_JAUNE};
 
+// Let's define the pins of the buttons
+const int pin_bt_BT1 = 34;
+const int pin_bt_BT2 = 35;
+const int pin_bt_BT3 = 32;
+const int pin_bt_BT4 = 33;
+u_int8_t button_pin2[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
+
 // Définitons des pins des lumières
 const int led_JAUNE = 19;
 const int led_ROUGE = 23;
 const int led_NOIR = 25;
 const int led_VERT = 26;
 u_int8_t led_pin[4] = {led_ROUGE, led_NOIR, led_VERT, led_JAUNE};
+
+//Let's define the pins of the leds
+const int pin_led_BT1[3] = {23,22,21};
+const int pin_led_BT2[3] = {19,18,5};
+const int pin_led_BT3[3] = {17,16,4};
+const int pin_led_BT4[3] = {2,15,0}; //Cour-circuit le pin sd1 vers GPIO 0
+
+u_int8_t led_pin2[4][3] = {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
+u_int8_t led_pwm[4][3] = {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
+
 
 // Variable button delay definitions
 int t_delay_click = 140;
@@ -140,6 +157,16 @@ void setup()
   pinMode(5, OUTPUT);
   pinMode(14, OUTPUT);
   pinMode(15, OUTPUT);
+
+  for(int j = 0; j < 4; j++)
+  {
+    for(int i = 0; i < 3; i++)
+    {
+      ledcSetup(j*3+i, 5000, 8);
+      ledcAttachPin(led_pin2[j][i], j*3+i);
+      ledcWrite(j, 0);
+    }
+  }
 
   algo_led_random();
   algo_answer();

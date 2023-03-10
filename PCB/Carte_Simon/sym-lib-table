@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name "SymbGamelGe2_v6")(type "KiCad")(uri "${KIPRJMOD}/LibGamelGe2_v6/SymbGamelGe2_v6.kicad_sym")(options "")(descr ""))
+  (lib (name "ESP32-DEVKITC-32D")(type "KiCad")(uri "${KIPRJMOD}/esp32/libKicad/ESP32-DEVKITC-32D.kicad_sym")(options "")(descr ""))
+)

@@ -1,0 +1,5 @@
+La carte électronique est une V0.
+
+Le courant pour diode du bouton est d'environ 9 mA.
+La taille, le type et la valeur des condensateurs n'est pas fixé.
+Questionnement sur la possibilité de plier tous les IRL510.
