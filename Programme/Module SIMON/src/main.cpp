@@ -33,6 +33,8 @@ bool sequence_led(int level);
 void algo_led_random(void);
 void algo_led_random_place(void);
 void algo_answer(void);
+
+void led_PWM(int led_pin, int pwm[3]);
 void player_answer(void);
 void all_led_High(int delai);
 
@@ -53,6 +55,8 @@ void request(int nclient, String data);
 #define PWMBLEU {0,0,1020}
 #define PWMVERT {0,1020,0}
 #define PWMJAUNE {1020,1020,0}
+#define PWMWHITE {1020,1020,1020}
+#define PWMBLACK {0,0,0}
 
 #define INIT 0
 #define TEST 1
@@ -425,6 +429,15 @@ bool sequence_led(int num_seq)
   {
     time_delay_led = millis();
     return false;
+  }
+}
+
+void led_PWM(int led_pin, int pwm[3])
+{
+  // This function allows you to make a sequence of leds according to the level of difficulty
+  for(int i = 0; i < 3; i++)
+  {
+    ledcWrite(led_pin*3+i, pwm[i]);
   }
 }
 
