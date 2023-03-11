@@ -529,6 +529,24 @@ void algo_led_random()
   }
 }
 
+void algo_led_random_place(void)
+{
+
+  led_place[0] = random(0, 3);
+  for(int i = 1; i < 4; i++)
+  {
+    led_place[i] = random(0, 3);
+    for(int j = 0; j < i; j++)
+    {
+      if(led_place[i] == led_place[j])
+      {
+        i--;
+        break;
+      }
+    }
+  }
+}
+
 void algo_answer()
 {
   // This function makes it possible to make the sequence of the response of the player according to the basic sequence and the error
