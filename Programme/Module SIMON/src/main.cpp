@@ -27,12 +27,16 @@ rgb_lcd lcd;
 // Function prototype
 void setup_bt(int nb_bt); 
 void read_bt(int nb_bt);
-void test_bt_led(void);
+
+void setup_led(int nb_led);
 bool sequence_led(int level);
 void algo_led_random(void);
+void algo_led_random_place(void);
 void algo_answer(void);
 void player_answer(void);
 void all_led_High(int delai);
+
+void test_bt_led(void);
 
 String get_Client(int nclient);
 void json_mini_game();
@@ -41,9 +45,14 @@ void server();
 void request(int nclient, String data);
 
 #define ROUGE 0
-#define NOIR 1
+#define BLEU 1
 #define VERT 2
 #define JAUNE 3
+
+#define PWMROUGE {1020,0,0}
+#define PWMBLEU {0,0,1020}
+#define PWMVERT {0,1020,0}
+#define PWMJAUNE {1020,1020,0}
 
 #define INIT 0
 #define TEST 1
@@ -72,9 +81,9 @@ unsigned long int server_time = 0;
 // Let's define button pins
 const int bt_JAUNE = 4;
 const int bt_ROUGE = 13;
-const int bt_NOIR = 16;
+const int bt_BLEU = 16;
 const int bt_VERT = 17;
-u_int8_t button_pin[4] = {bt_ROUGE, bt_NOIR, bt_VERT, bt_JAUNE};
+u_int8_t button_pin[4] = {bt_ROUGE, bt_BLEU, bt_VERT, bt_JAUNE};
 
 // Let's define the pins of the buttons
 const int pin_bt_BT1 = 34;
@@ -86,9 +95,9 @@ u_int8_t button_pin2[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
 // Définitons des pins des lumières
 const int led_JAUNE = 19;
 const int led_ROUGE = 23;
-const int led_NOIR = 25;
+const int led_BLEU = 25;
 const int led_VERT = 26;
-u_int8_t led_pin[4] = {led_ROUGE, led_NOIR, led_VERT, led_JAUNE};
+u_int8_t led_pin[4] = {led_ROUGE, led_BLEU, led_VERT, led_JAUNE};
 
 //Let's define the pins of the leds
 const int pin_led_BT1[3] = {23,22,21};
@@ -96,8 +105,12 @@ const int pin_led_BT2[3] = {19,18,5};
 const int pin_led_BT3[3] = {17,16,4};
 const int pin_led_BT4[3] = {2,15,0}; //Cour-circuit le pin sd1 vers GPIO 0
 
-u_int8_t led_pin2[4][3] = {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
-u_int8_t led_pwm[4][3] = {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
+u_int8_t led_pin2[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
+                            {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
+                            {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
+                            {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
+u_int8_t led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
+u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
 
 
 // Variable button delay definitions
@@ -116,7 +129,7 @@ int answer[20] = {0};
 
 const int error_table[4][3] = {{1, 3, 2}, {0, 2, 0}, {3, 1, 3}, {2, 0, 1}};
 // Error_table: 1st index: color led sequence, 2nd index: color led answer
-// ROUGE : 0, NOIR : 1, VERT : 2, JAUNE : 3
+// ROUGE : 0, BLEU : 1, VERT : 2, JAUNE : 3
 
 int color[4][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
 /*
@@ -158,15 +171,7 @@ void setup()
   pinMode(14, OUTPUT);
   pinMode(15, OUTPUT);
 
-  for(int j = 0; j < 4; j++)
-  {
-    for(int i = 0; i < 3; i++)
-    {
-      ledcSetup(j*3+i, 5000, 8);
-      ledcAttachPin(led_pin2[j][i], j*3+i);
-      ledcWrite(j, 0);
-    }
-  }
+  setup_led(4);
 
   algo_led_random();
   algo_answer();
@@ -200,13 +205,7 @@ void loop()
 {
   read_bt(4);
   server();
-  /*
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.printf("level : %d", level);
-  lcd.setCursor(0, 1);
-  lcd.printf("mode jeu : %d", state_system);
-  */
+
   switch (state_system)  {
   case INIT:
     update_mini_game();
@@ -214,7 +213,7 @@ void loop()
       state_system = TEST;
       request(3, "1");
     }
-    if (bt[NOIR].click() || mini_game[3] == 2)
+    if (bt[BLEU].click() || mini_game[3] == 2)
     {
       request(3, "2");
       state_system = GAME;
@@ -379,6 +378,24 @@ void request(int nclient, String data)
   client[nclient].GET();
   url[nclient].remove(url[nclient].length() - 1);
   client[nclient].end();
+}
+
+void setup_led(int nb_led)
+{
+  /*
+    Input : nb_led : number of leds (int)
+    Output : none
+    Description: This function is used to initialize the leds
+  */
+  for(int j = 0; j < 4; j++)
+  {
+    for(int i = 0; i < 3; i++)
+    {
+      ledcSetup(j*3+i, 5000, 8);
+      ledcAttachPin(led_pin2[j][i], j*3+i);
+      ledcWrite(j, 0);
+    }
+  }
 }
 
 bool sequence_led(int num_seq)
@@ -552,16 +569,16 @@ void test_bt_led()
     }
   }
 
-  if (bt[NOIR].click())
+  if (bt[BLEU].click())
   {
-    digitalWrite(led_NOIR, HIGH);
-    led_time[NOIR] = millis();
+    digitalWrite(led_BLEU, HIGH);
+    led_time[BLEU] = millis();
   }
   else
   {
-    if (millis() > led_time[NOIR] + 500)
+    if (millis() > led_time[BLEU] + 500)
     {
-      digitalWrite(led_NOIR, LOW);
+      digitalWrite(led_BLEU, LOW);
     }
   }
 
