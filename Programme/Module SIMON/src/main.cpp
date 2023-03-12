@@ -39,6 +39,7 @@ void player_answer(void);
 void all_led_High(int delai);
 
 void test_bt_led(void);
+void test_PWM(void);
 
 String get_Client(int nclient);
 void json_mini_game();
@@ -82,26 +83,12 @@ int mini_game[4] = {0, 0, 0, 0};
 int server_state_system = 0;
 unsigned long int server_time = 0;
 
-// Let's define button pins
-const int bt_JAUNE = 4;
-const int bt_ROUGE = 13;
-const int bt_BLEU = 16;
-const int bt_VERT = 17;
-u_int8_t button_pin[4] = {bt_ROUGE, bt_BLEU, bt_VERT, bt_JAUNE};
-
 // Let's define the pins of the buttons
 const int pin_bt_BT1 = 34;
 const int pin_bt_BT2 = 35;
 const int pin_bt_BT3 = 32;
 const int pin_bt_BT4 = 33;
-u_int8_t button_pin2[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
-
-// Définitons des pins des lumières
-const int led_JAUNE = 19;
-const int led_ROUGE = 23;
-const int led_BLEU = 25;
-const int led_VERT = 26;
-u_int8_t led_pin[4] = {led_ROUGE, led_BLEU, led_VERT, led_JAUNE};
+u_int8_t button_pin[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
 
 //Let's define the pins of the leds
 const int pin_led_BT1[3] = {23,22,21};
@@ -109,7 +96,7 @@ const int pin_led_BT2[3] = {19,18,5};
 const int pin_led_BT3[3] = {17,16,4};
 const int pin_led_BT4[3] = {2,15,0}; //Cour-circuit le pin sd1 vers GPIO 0
 
-u_int8_t led_pin2[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
+u_int8_t led_pin[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
                             {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
                             {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
                             {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
@@ -164,11 +151,6 @@ void setup()
 {
   lcd.begin(16, 2);
   setup_bt(4);
-
-  for (int k = 0; k < 4; k++)
-  {
-    pinMode(led_pin[k], OUTPUT);
-  }
 
   // temporary assignment
   pinMode(5, OUTPUT);
@@ -396,7 +378,7 @@ void setup_led(int nb_led)
     for(int i = 0; i < 3; i++)
     {
       ledcSetup(j*3+i, 5000, 8);
-      ledcAttachPin(led_pin2[j][i], j*3+i);
+      ledcAttachPin(led_pin[j][i], j*3+i);
       ledcWrite(j, 0);
     }
   }
@@ -569,60 +551,24 @@ void algo_answer()
   }
 }
 
-void test_bt_led()
+void test_PWM(void)
 {
-  // This function is used to test buttons and leds
-  // If the button is pressed, the corresponding LED lights up
-  // If the button is released, the corresponding LED turns off
-  if (bt[JAUNE].click())
+  //test PWM with button
+  for(int i = 0; i < 4; i++)
   {
-    digitalWrite(led_JAUNE, HIGH);
-    led_time[JAUNE] = millis();
-  }
-  else
-  {
-    if (millis() > led_time[JAUNE] + 500)
+    if(digitalRead(button_pin[i]) == LOW)
     {
-      digitalWrite(led_JAUNE, LOW);
+      for(int j = 0; j < 3; j++)
+      {
+        ledcWrite(i*3+j, led_pwm[i][j]);
+      }
     }
-  }
-
-  if (bt[ROUGE].click())
-  {
-    digitalWrite(led_ROUGE, HIGH);
-    led_time[ROUGE] = millis();
-  }
-  else
-  {
-    if (millis() > led_time[ROUGE] + 500)
+    else
     {
-      digitalWrite(led_ROUGE, LOW);
-    }
-  }
-
-  if (bt[BLEU].click())
-  {
-    digitalWrite(led_BLEU, HIGH);
-    led_time[BLEU] = millis();
-  }
-  else
-  {
-    if (millis() > led_time[BLEU] + 500)
-    {
-      digitalWrite(led_BLEU, LOW);
-    }
-  }
-
-  if (bt[VERT].press())
-  {
-    digitalWrite(led_VERT, HIGH);
-    led_time[VERT] = millis();
-  }
-  else
-  {
-    if (millis() > led_time[VERT] + 500)
-    {
-      digitalWrite(led_VERT, LOW);
+      for(int j = 0; j < 3; j++)
+      {
+        ledcWrite(i*3+j, 0);
+      }
     }
   }
 }
