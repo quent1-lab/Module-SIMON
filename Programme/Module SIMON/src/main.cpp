@@ -34,11 +34,11 @@ void algo_led_random(void);
 void algo_led_random_place(void);
 void algo_answer(void);
 
-void led_PWM(int led_pin, int pwm[3]);
+void led_PWM(int led_pin, uint8_t pwm[3]);
+void led_PWM_Off(int led_num);
 void player_answer(void);
 void all_led_High(int delai);
 
-void test_bt_led(void);
 void test_PWM(void);
 
 String get_Client(int nclient);
@@ -57,7 +57,7 @@ void request(int nclient, String data);
 #define PWMVERT {0,1020,0}
 #define PWMJAUNE {1020,1020,0}
 #define PWMWHITE {1020,1020,1020}
-#define PWMBLACK {0,0,0}
+#define PWM_OFF {0,0,0}
 
 #define INIT 0
 #define TEST 1
@@ -210,7 +210,7 @@ void loop()
 
     break;
   case TEST:
-    test_bt_led();
+    test_PWM();
     break;
   case GAME:
     switch (state_game)
@@ -392,7 +392,7 @@ bool sequence_led(int num_seq)
   {
     if (millis() - time_delay_led < 800)
     {
-      digitalWrite(led_pin[sequence[sequence_number]], HIGH);
+      led_PWM(led_place[sequence[sequence_number]],led_pwm[led_place[sequence[sequence_number]]]);
       return false;
     }
     else if (millis() - time_delay_led > 1300)
@@ -403,7 +403,7 @@ bool sequence_led(int num_seq)
     }
     else
     {
-      digitalWrite(led_pin[sequence[sequence_number]], LOW);
+      led_PWM_Off(led_place[sequence[sequence_number]]);
       return false;
     }
   }
@@ -414,12 +414,21 @@ bool sequence_led(int num_seq)
   }
 }
 
-void led_PWM(int led_pin, int pwm[3])
+void led_PWM(int led_num,uint8_t pwm[3])
 {
   // This function allows you to make a sequence of leds according to the level of difficulty
   for(int i = 0; i < 3; i++)
   {
-    ledcWrite(led_pin*3+i, pwm[i]);
+    ledcWrite(led_num*3+i, pwm[i]);
+  }
+}
+
+void led_PWM_Off(int led_num)
+{
+  // This function allows you to make a sequence of leds according to the level of difficulty
+  for(int i = 0; i < 3; i++)
+  {
+    ledcWrite(led_num*3+i, 0);
   }
 }
 
@@ -430,17 +439,17 @@ void player_answer()
   {
     if (digitalRead(button_pin[k]) == LOW)
     {
-      digitalWrite(led_pin[k], HIGH);
+      led_PWM(k,led_pwm[k]);
     }
     else
-      digitalWrite(led_pin[k], LOW);
+      led_PWM_Off(k);
   }
 
   if (millis() - time_ans > 10000)
   {
     for (int k = 0; k < 4; k++)
     {
-      digitalWrite(led_pin[k], LOW);
+      led_PWM_Off(k);
     }
     state_game = SEQ;
     time_seq = millis();
@@ -492,14 +501,14 @@ void all_led_High(int delay)
   {
     for (int k = 0; k < 4; k++)
     {
-      digitalWrite(led_pin[k], HIGH);
+      led_PWM(k,led_pwm[k]);
     }
   }
   else
   {
     for (int k = 0; k < 4; k++)
     {
-      digitalWrite(led_pin[k], LOW);
+      led_PWM_Off(k);
     }
     order_bt = 0;
     level = 0;
@@ -558,17 +567,11 @@ void test_PWM(void)
   {
     if(digitalRead(button_pin[i]) == LOW)
     {
-      for(int j = 0; j < 3; j++)
-      {
-        ledcWrite(i*3+j, led_pwm[i][j]);
-      }
+      led_PWM(i,led_pwm[i]);
     }
     else
     {
-      for(int j = 0; j < 3; j++)
-      {
-        ledcWrite(i*3+j, 0);
-      }
+      led_PWM_Off(i);
     }
   }
 }
