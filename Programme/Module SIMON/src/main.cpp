@@ -34,10 +34,12 @@ void algo_led_random(void);
 void algo_led_random_place(void);
 void algo_answer(void);
 
-void led_PWM(int led_pin, uint8_t pwm[3]);
+void led_PWM(int led_pin, int pwm[3]);
 void led_PWM_Off(int led_num);
 void player_answer(void);
 void all_led_High(int delai);
+void rainbow_led(void);
+
 
 void test_PWM(void);
 
@@ -100,7 +102,7 @@ u_int8_t led_pin[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]},
                             {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
                             {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
                             {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
-u_int8_t led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
+int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
 
 
@@ -414,7 +416,7 @@ bool sequence_led(int num_seq)
   }
 }
 
-void led_PWM(int led_num,uint8_t pwm[3])
+void led_PWM(int led_num,int pwm[3])
 {
   // This function allows you to make a sequence of leds according to the level of difficulty
   for(int i = 0; i < 3; i++)
@@ -521,6 +523,16 @@ void all_led_High(int delay)
     }
     state_game = SEQ;
     time_seq = millis();
+  }
+}
+
+void rainbow_led()
+{
+  // This function lights up all leds with rainbow colors. This function turns on all leds with rainbow colors. So the colors red green and blue lights up in order to make all the colors of the rainbow.
+  for (int k = 1; k < 5; k++)
+  {
+    int rainbow[] = {(millis()*k) % 1023, (millis()*k) % 1023, (millis()*k) % 1023};
+    led_PWM(k, rainbow);
   }
 }
 
