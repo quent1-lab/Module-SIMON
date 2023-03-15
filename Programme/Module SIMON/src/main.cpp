@@ -37,10 +37,10 @@ void algo_answer(void);
 void led_PWM(int led_pin, int pwm[3]);
 void led_PWM_Off(int led_num);
 void player_answer(void);
-void all_led_High(int delai);
+void error_Answer(int delai);
 void rainbow_led(void);
 
-
+void test_all_led(void);
 void test_PWM(void);
 
 String get_Client(int nclient);
@@ -48,6 +48,7 @@ void json_mini_game();
 void update_mini_game();
 void server();
 void request(int nclient, String data);
+String encode_json_data();
 
 #define ROUGE 0
 #define BLEU 1
@@ -68,19 +69,20 @@ void request(int nclient, String data);
 #define SEQ 0
 #define ANS 1
 #define ERR 2
+#define WIN 3
 
 // Definitions of WiFi variables
-const char *ssid = "Asus_PA";
-const char *pass = "SIMON_23";
+const char *ssid = "POCO_QT1";
+const char *pass = "Oul0uCoupTer4321";
 
 //byte mac_addr[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-
+int id_mini_game = 101;
 //Server variable definitions
-String url[4] = { "http://192.168.137.1/database/json.php", 
-                  "http://192.168.137.1/database/Start_py.bat",
-                  "http://192.168.137.1/database/request.php?level=",
+String url[4] = { "http://192.168.175.63/get_system_data.php?id=1", //A modifier
+                  "http://192.168.175.63/add_mini_game.php?id_mini_game="+String(id_mini_game),
+                  "http://192.168.175.63/get_json_data.php?json=",
                   "http://192.168.137.1/database/request.php?mode_jeu="};
-int mini_game[4] = {0, 0, 0, 0};
+int mini_game[4] = {0, 0, 0, 1};
 // mini_game: 1st index: id_module, 2nd index: level_max, 3rd index: level, 4th index: mode_jeu
 int server_state_system = 0;
 unsigned long int server_time = 0;
@@ -98,10 +100,10 @@ const int pin_led_BT2[3] = {19,18,5};
 const int pin_led_BT3[3] = {17,16,4};
 const int pin_led_BT4[3] = {2,15,0}; //Cour-circuit le pin sd1 vers GPIO 0
 
-u_int8_t led_pin[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
-                            {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
-                            {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
-                            {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
+int led_pin[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
+                      {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
+                      {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
+                      {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
 int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
 
@@ -144,6 +146,7 @@ int level_max = 20;
 int error = 0;
 int sequence_number = 0;
 int order_bt = 0;
+int difficulty = 0;
 
 // System variables
 int state_system = 0;
@@ -184,8 +187,7 @@ void setup()
   client[0].begin(url[0]);
   client[1].begin(url[1]);
 
-  request(2, "0");
-  request(3, "0");
+  request(1, "");
   delay(2000);
 }
 
@@ -199,11 +201,11 @@ void loop()
     update_mini_game();
     if (bt[JAUNE].click() || mini_game[3] == 1){
       state_system = TEST;
-      request(3, "1");
+      //request(3, "1");
     }
     if (bt[BLEU].click() || mini_game[3] == 2)
     {
-      request(3, "2");
+      //request(3, "2");
       state_system = GAME;
       state_game = ERR;
       time_seq = millis();
@@ -231,10 +233,12 @@ void loop()
       break;
     case ANS:
       player_answer();
-
       break;
     case ERR:
-      all_led_High(1000);     
+      error_Answer(1000);     
+      break;
+    case WIN:
+      rainbow_led();
       break;
     }
     break;
@@ -293,7 +297,7 @@ void json_mini_game(){
     Output : none
     Description: This function is used to recover the data of the mini game
   */
-  String payload = get_Client(0);
+  String payload = '{' + get_Client(0);
 
   if (payload == "0")
     return;
@@ -308,11 +312,13 @@ void json_mini_game(){
 
   StaticJsonDocument<200> doc;
   deserializeJson(doc, json);
+ 
+  mini_game[0] = int(doc["time_game"]);
+  mini_game[1] = doc["nv_max"];
+  mini_game[2] = doc["nv"];
+  mini_game[3] = doc["mode_jeu"];
 
-  mini_game[0] = doc[0]["id_module"];
-  mini_game[1] = doc[0]["nv_max"];
-  mini_game[2] = doc[0]["nv"];
-  mini_game[3] = doc[0]["mode_jeu"];
+  Serial.println(mini_game[0]);
 }
 
 void update_mini_game(){
@@ -335,14 +341,15 @@ void server(){
       server_time = millis();
       break;
     case 1 :
-      //wait 100ms to avoid errors
-      if(millis() - server_time > 100){
+      //wait 500ms to avoid errors
+      if(millis() - server_time > 500){
         server_state_system = 2;
       }
       break;
     case 2 :
       json_mini_game();
-      server_state_system = 3;
+      request(2, encode_json_data());
+      server_state_system = 0;
       break;
     case 3 :
       if(state_system == 0){
@@ -364,9 +371,23 @@ void request(int nclient, String data)
   url[nclient] += data;
   client[nclient].begin(url[nclient]);
   client[nclient].GET();
-  url[nclient].remove(url[nclient].length() - 1);
+  url[nclient].remove(url[nclient].length() - data.length());
   client[nclient].end();
 }
+
+String encode_json_data()
+{
+  /*
+    Input : none
+    Output : none
+    Description: This function is used to encode the data to send to the client
+    //Example of the json data to send :
+    //{"id_mini_game":"1","difficulty":"1","state":"1","nv_max":"1","nv":"1","error":"1","button1":"1","button2":"1","button3":"1","button4":"1","led1_R":"1","led1_G":"1","led1_B":"1","led2_R":"1","led2_G":"1","led2_B":"1","led3_R":"1","led3_G":"1","led3_B":"1","led4_R":"1","led4_G":"1","led4_B":"1"}
+  */
+  String data = "{\"id_mini_game\":\"" + String(id_mini_game) + "\",\"difficulty\":\"" + String(difficulty) + "\",\"state\":\"" + String(state_system) + "\",\"nv_max\":\"" + String(level_max) + "\",\"nv\":\"" + String(level) + "\",\"error\":\"" + String(error) + "\",\"button1\":\"" + String(bt[0].etat()) + "\",\"button2\":\"" + String(bt[1].etat()) + "\",\"button3\":\"" + String(bt[2].etat()) + "\",\"button4\":\"" + String(bt[3].etat()) + "\",\"led1_R\":\"" + String(led_pwm[0][0]) + "\",\"led1_G\":\"" + String(led_pwm[0][1]) + "\",\"led1_B\":\"" + String(led_pwm[0][2]) + "\",\"led2_R\":\"" + String(led_pwm[1][0]) + "\",\"led2_G\":\"" + String(led_pwm[1][1]) + "\",\"led2_B\":\"" + String(led_pwm[1][2]) + "\",\"led3_R\":\"" + String(led_pwm[2][0]) + "\",\"led3_G\":\"" + String(led_pwm[2][1]) + "\",\"led3_B\":\"" + String(led_pwm[2][2]) + "\",\"led4_R\":\"" + String(led_pwm[3][0]) + "\",\"led4_G\":\"" + String(led_pwm[3][1]) + "\",\"led4_B\":\"" + String(led_pwm[3][2]) + "\"}";
+  return data;
+}
+
 
 void setup_led(int nb_led)
 {
@@ -379,7 +400,7 @@ void setup_led(int nb_led)
   {
     for(int i = 0; i < 3; i++)
     {
-      ledcSetup(j*3+i, 5000, 8);
+      ledcSetup(j*3+i, 5000, 10);
       ledcAttachPin(led_pin[j][i], j*3+i);
       ledcWrite(j, 0);
     }
@@ -495,7 +516,7 @@ void player_answer()
   }
 }
 
-void all_led_High(int delay)
+void error_Answer(int delay)
 {
   // This function allows all the LEDs to be turned on for a defined time.
 
@@ -531,7 +552,8 @@ void rainbow_led()
   // This function lights up all leds with rainbow colors. This function turns on all leds with rainbow colors. So the colors red green and blue lights up in order to make all the colors of the rainbow.
   for (int k = 1; k < 5; k++)
   {
-    int rainbow[] = {(millis()*k) % 1023, (millis()*k) % 1023, (millis()*k) % 1023};
+    int rdm = millis() % 1023;
+    int rainbow[] = {rdm*k, rdm*k, rdm*k};
     led_PWM(k, rainbow);
   }
 }
@@ -569,6 +591,15 @@ void algo_answer()
   for (int k = 0; k < level_max; k++)
   {
     answer[k] = error_table[sequence[k]][error];
+  }
+}
+
+void test_all_led(void)
+{
+  //test all led
+  for(int i = 0; i < 12; i++)
+  {
+    ledcWrite(i, 500);
   }
 }
 

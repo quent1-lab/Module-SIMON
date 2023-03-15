@@ -5,7 +5,7 @@
 			"path": "."
 		},
 		{
-			"path": "C:/wamp64/www/database"
+			"path": "../../../../../../../public_html/ktanbe.er/public"
 		}
 	],
 	"settings": {}
