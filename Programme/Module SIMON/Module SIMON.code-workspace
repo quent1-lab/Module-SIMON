@@ -6,6 +6,10 @@
 		},
 		{
 			"path": "../../../../../../../public_html/ktanbe.er/public"
+		},
+		{
+			"name": "Chrono",
+			"path": "../../../../../../PlatformIO/Projects/Chrono"
 		}
 	],
 	"settings": {}

@@ -78,7 +78,7 @@ const char *pass = "Oul0uCoupTer4321";
 //byte mac_addr[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 int id_mini_game = 101;
 //Server variable definitions
-String url[4] = { "http://192.168.175.63/get_system_data.php?id=1", //A modifier
+String url[4] = { "http://192.168.175.63/get_system_data.php?id="+String(id_mini_game), //A modifier
                   "http://192.168.175.63/add_mini_game.php?id_mini_game="+String(id_mini_game),
                   "http://192.168.175.63/get_json_data.php?json=",
                   "http://192.168.137.1/database/request.php?mode_jeu="};
