@@ -12,7 +12,7 @@ Level 1 is the easiest and level 5 is the most difficult.
 The game is over when the player reaches level 5.
 */
 
-//Add score for players
+// Add score for players
 
 #include <Arduino.h>
 #include "Bouton.h"
@@ -25,7 +25,7 @@ HTTPClient client[4];
 rgb_lcd lcd;
 
 // Function prototype
-void setup_bt(int nb_bt); 
+void setup_bt(int nb_bt);
 void read_bt(int nb_bt);
 
 void setup_led(int nb_led);
@@ -39,6 +39,7 @@ void led_PWM_Off(int led_num);
 void player_answer(void);
 void error_Answer(int delai);
 void rainbow_led(void);
+void smooth_RGB(void);
 
 void test_all_led(void);
 void test_PWM(void);
@@ -55,12 +56,30 @@ String encode_json_data();
 #define VERT 2
 #define JAUNE 3
 
-#define PWMROUGE {1020,0,0}
-#define PWMBLEU {0,0,1020}
-#define PWMVERT {0,1020,0}
-#define PWMJAUNE {1020,1020,0}
-#define PWMWHITE {1020,1020,1020}
-#define PWM_OFF {0,0,0}
+#define PWMROUGE \
+  {              \
+    1020, 0, 0   \
+  }
+#define PWMBLEU \
+  {             \
+    0, 0, 1020  \
+  }
+#define PWMVERT \
+  {             \
+    0, 1020, 0  \
+  }
+#define PWMJAUNE  \
+  {               \
+    1020, 1020, 0 \
+  }
+#define PWMWHITE     \
+  {                  \
+    1020, 1020, 1020 \
+  }
+#define PWM_OFF \
+  {             \
+    0, 0, 0     \
+  }
 
 #define INIT 0
 #define TEST 1
@@ -75,17 +94,18 @@ String encode_json_data();
 const char *ssid = "POCO_QT1";
 const char *pass = "Oul0uCoupTer4321";
 
-//byte mac_addr[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+// byte mac_addr[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 int id_mini_game = 101;
-//Server variable definitions
-String url[4] = { "http://192.168.175.63/get_system_data.php?id="+String(id_mini_game), //A modifier
-                  "http://192.168.175.63/add_mini_game.php?id_mini_game="+String(id_mini_game),
-                  "http://192.168.175.63/get_json_data.php?json=",
-                  "http://192.168.137.1/database/request.php?mode_jeu="};
+// Server variable definitions
+String url[4] = {"http://192.168.66.63/get_system_data.php?id=" + String(id_mini_game), // A modifier
+                 "http://192.168.66.63/add_mini_game.php?id_mini_game=" + String(id_mini_game),
+                 "http://192.168.66.63/get_json_data.php?json=",
+                 "http://192.168.137.1/database/request.php?mode_jeu="};
 int mini_game[4] = {0, 0, 0, 1};
 // mini_game: 1st index: id_module, 2nd index: level_max, 3rd index: level, 4th index: mode_jeu
 int server_state_system = 0;
 unsigned long int server_time = 0;
+bool first_connection = true;
 
 // Let's define the pins of the buttons
 const int pin_bt_BT1 = 34;
@@ -94,19 +114,18 @@ const int pin_bt_BT3 = 32;
 const int pin_bt_BT4 = 33;
 u_int8_t button_pin[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
 
-//Let's define the pins of the leds
-const int pin_led_BT1[3] = {23,22,21};
-const int pin_led_BT2[3] = {19,18,5};
-const int pin_led_BT3[3] = {17,16,4};
-const int pin_led_BT4[3] = {2,15,0}; //Cour-circuit le pin sd1 vers GPIO 0
+// Let's define the pins of the leds
+const int pin_led_BT1[3] = {23, 22, 21};
+const int pin_led_BT2[3] = {19, 18, 5};
+const int pin_led_BT3[3] = {17, 16, 4};
+const int pin_led_BT4[3] = {2, 15, 0}; // Cour-circuit le pin sd1 vers GPIO 0
 
-int led_pin[4][3] =  {{pin_led_BT1[0],pin_led_BT1[1],pin_led_BT1[2]}, 
-                      {pin_led_BT2[0],pin_led_BT2[1],pin_led_BT2[2]}, 
-                      {pin_led_BT3[0],pin_led_BT3[1],pin_led_BT3[2]}, 
-                      {pin_led_BT4[0],pin_led_BT4[1],pin_led_BT4[2]}};
+int led_pin[4][3] = {{pin_led_BT1[0], pin_led_BT1[1], pin_led_BT1[2]},
+                     {pin_led_BT2[0], pin_led_BT2[1], pin_led_BT2[2]},
+                     {pin_led_BT3[0], pin_led_BT3[1], pin_led_BT3[2]},
+                     {pin_led_BT4[0], pin_led_BT4[1], pin_led_BT4[2]}};
 int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
-
 
 // Variable button delay definitions
 int t_delay_click = 140;
@@ -149,7 +168,7 @@ int order_bt = 0;
 int difficulty = 0;
 
 // System variables
-int state_system = 0;
+int state_system = TEST;
 int state_game = 0;
 
 void setup()
@@ -174,38 +193,43 @@ void setup()
   WiFi.begin(ssid, pass);
   Serial.println("\nConnecting");
 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.print(".");
-    delay(100);
-  }
-
-  Serial.println("\nConnected to the WiFi network");
-  Serial.print("Local ESP32 IP: ");
-  Serial.println(WiFi.localIP());
-
   client[0].begin(url[0]);
   client[1].begin(url[1]);
 
-  request(1, "");
-  delay(2000);
 }
 
 void loop()
 {
   read_bt(4);
-  server();
 
-  switch (state_system)  {
-  case INIT:
-    update_mini_game();
-    if (bt[JAUNE].click() || mini_game[3] == 1){
-      state_system = TEST;
-      //request(3, "1");
-    }
-    if (bt[BLEU].click() || mini_game[3] == 2)
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    if(first_connection)
     {
-      //request(3, "2");
+      first_connection = false;
+      request(1, "1");
+    }
+    server();
+  }
+
+  switch (state_system)
+  {
+  case INIT:
+    //update_mini_game();
+    led_PWM(JAUNE, led_pwm[JAUNE]);
+    led_PWM(BLEU, led_pwm[BLEU]);
+    if (bt[JAUNE].press())
+    {
+      state_system = TEST;
+      led_PWM_Off(JAUNE);
+      led_PWM_Off(BLEU);
+      // request(3, "1");
+    }
+    if (bt[BLEU].press())
+    {
+      // request(3, "2");
+      led_PWM_Off(JAUNE);
+      led_PWM_Off(BLEU);
       state_system = GAME;
       state_game = ERR;
       time_seq = millis();
@@ -214,7 +238,9 @@ void loop()
 
     break;
   case TEST:
-    test_PWM();
+    //test_PWM();
+    //test_all_led();
+    smooth_RGB();
     break;
   case GAME:
     switch (state_game)
@@ -235,7 +261,7 @@ void loop()
       player_answer();
       break;
     case ERR:
-      error_Answer(1000);     
+      error_Answer(1000);
       break;
     case WIN:
       rainbow_led();
@@ -254,7 +280,7 @@ void setup_bt(int nb_bt)
   */
   for (int k = 0; k < nb_bt; k++)
   {
-    bt[k].begin(button_pin[k], HIGH, t_delay_click, t_delay_press, t_delay_bounce);
+    bt[k].begin(button_pin[k], LOW, t_delay_click, t_delay_press, t_delay_bounce);
   }
 }
 
@@ -282,7 +308,7 @@ String get_Client(int nclient)
 
   if (httpCode > 0)
   {
-    return client[nclient].getString();    
+    return client[nclient].getString();
   }
   else
   {
@@ -291,7 +317,8 @@ String get_Client(int nclient)
   }
 }
 
-void json_mini_game(){
+void json_mini_game()
+{
   /*
     Input : none
     Output : none
@@ -303,16 +330,16 @@ void json_mini_game(){
     return;
 
   char json[payload.length() + 1];
-  payload.replace(" ","");
-  payload.replace("\\","");
+  payload.replace(" ", "");
+  payload.replace("\\", "");
   payload.trim();
-  payload.remove(0,1);
+  payload.remove(0, 1);
   payload.toCharArray(json, payload.length() + 1);
   Serial.println(json);
 
   StaticJsonDocument<200> doc;
   deserializeJson(doc, json);
- 
+
   mini_game[0] = int(doc["time_game"]);
   mini_game[1] = doc["nv_max"];
   mini_game[2] = doc["nv"];
@@ -321,42 +348,49 @@ void json_mini_game(){
   Serial.println(mini_game[0]);
 }
 
-void update_mini_game(){
-  if(mini_game[1] != level_max){
+void update_mini_game()
+{
+  if (mini_game[1] != level_max)
+  {
     level_max = mini_game[1];
     algo_led_random();
     algo_answer();
   }
-  if(mini_game[3] != state_system){
-    //state_system = mini_game[3];
+  if (mini_game[3] != state_system)
+  {
+    // state_system = mini_game[3];
   }
 }
 
-void server(){
-  
-  switch(server_state_system){
-    case 0:
-      //get_Client(1);
-      server_state_system = 1;
-      server_time = millis();
-      break;
-    case 1 :
-      //wait 500ms to avoid errors
-      if(millis() - server_time > 500){
-        server_state_system = 2;
-      }
-      break;
-    case 2 :
-      json_mini_game();
-      request(2, encode_json_data());
+void server()
+{
+
+  switch (server_state_system)
+  {
+  case 0:
+    // get_Client(1);
+    server_state_system = 1;
+    server_time = millis();
+    break;
+  case 1:
+    // wait 500ms to avoid errors
+    if (millis() - server_time > 500)
+    {
+      server_state_system = 2;
+    }
+    break;
+  case 2:
+    json_mini_game();
+    request(2, encode_json_data());
+    server_state_system = 0;
+    break;
+  case 3:
+    if (state_system == 0)
+    {
       server_state_system = 0;
-      break;
-    case 3 :
-      if(state_system == 0){
-        server_state_system = 0;
-      }
-    default :
-      break;
+    }
+  default:
+    break;
   }
 }
 
@@ -388,7 +422,6 @@ String encode_json_data()
   return data;
 }
 
-
 void setup_led(int nb_led)
 {
   /*
@@ -396,12 +429,12 @@ void setup_led(int nb_led)
     Output : none
     Description: This function is used to initialize the leds
   */
-  for(int j = 0; j < 4; j++)
+  for (int j = 0; j < 4; j++)
   {
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-      ledcSetup(j*3+i, 5000, 10);
-      ledcAttachPin(led_pin[j][i], j*3+i);
+      ledcSetup(j * 3 + i, 5000, 10);
+      ledcAttachPin(led_pin[j][i], j * 3 + i);
       ledcWrite(j, 0);
     }
   }
@@ -415,7 +448,7 @@ bool sequence_led(int num_seq)
   {
     if (millis() - time_delay_led < 800)
     {
-      led_PWM(led_place[sequence[sequence_number]],led_pwm[led_place[sequence[sequence_number]]]);
+      led_PWM(led_place[sequence[sequence_number]], led_pwm[led_place[sequence[sequence_number]]]);
       return false;
     }
     else if (millis() - time_delay_led > 1300)
@@ -437,21 +470,22 @@ bool sequence_led(int num_seq)
   }
 }
 
-void led_PWM(int led_num,int pwm[3])
+void led_PWM(int led_num, int pwm[3])
 {
   // This function allows you to make a sequence of leds according to the level of difficulty
-  for(int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_num*3+i, pwm[i]);
+    ledcWrite(led_num * 3 + i, pwm[i]);
   }
 }
 
 void led_PWM_Off(int led_num)
 {
   // This function allows you to make a sequence of leds according to the level of difficulty
-  for(int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_num*3+i, 0);
+    ledcWrite(led_num * 3 + i, 0);
+    led_pwm[led_num][i] = 0;
   }
 }
 
@@ -462,7 +496,7 @@ void player_answer()
   {
     if (digitalRead(button_pin[k]) == LOW)
     {
-      led_PWM(k,led_pwm[k]);
+      led_PWM(k, led_pwm[k]);
     }
     else
       led_PWM_Off(k);
@@ -524,7 +558,7 @@ void error_Answer(int delay)
   {
     for (int k = 0; k < 4; k++)
     {
-      led_PWM(k,led_pwm[k]);
+      led_PWM(k, led_pwm[k]);
     }
   }
   else
@@ -547,15 +581,36 @@ void error_Answer(int delay)
   }
 }
 
-void rainbow_led()
+void smooth_RGB()
 {
-  // This function lights up all leds with rainbow colors. This function turns on all leds with rainbow colors. So the colors red green and blue lights up in order to make all the colors of the rainbow.
-  for (int k = 1; k < 5; k++)
+  //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
+  for (int i = 0; i < 3; i++)
   {
-    int rdm = millis() % 1023;
-    int rainbow[] = {rdm*k, rdm*k, rdm*k};
-    led_PWM(k, rainbow);
+    for (int j = 0; j < 256; j++)
+    {
+      for (int k = 0; k < 4; k++)
+      {
+        led_pwm[k][i] = j;
+        led_PWM(k, led_pwm[k]);
+      }
+      delay(1);
+    }
+    for (int j = 255; j >= 0; j--)
+    {
+      for (int k = 0; k < 4; k++)
+      {
+        led_pwm[k][i] = j;
+        led_PWM(k, led_pwm[k]);
+      }
+      delay(1);
+    }
   }
+
+  for (int k = 0; k < 4; k++)
+  {
+    led_PWM_Off(k);
+  }
+
 }
 
 void algo_led_random()
@@ -571,12 +626,12 @@ void algo_led_random_place(void)
 {
 
   led_place[0] = random(0, 3);
-  for(int i = 1; i < 4; i++)
+  for (int i = 1; i < 4; i++)
   {
     led_place[i] = random(0, 3);
-    for(int j = 0; j < i; j++)
+    for (int j = 0; j < i; j++)
     {
-      if(led_place[i] == led_place[j])
+      if (led_place[i] == led_place[j])
       {
         i--;
         break;
@@ -596,25 +651,44 @@ void algo_answer()
 
 void test_all_led(void)
 {
-  //test all led
-  for(int i = 0; i < 12; i++)
+  // test all led
+  for (int i = 0; i < 3; i++)
   {
     ledcWrite(i, 500);
+    ledcWrite(i + 3, 500);
+    ledcWrite(i + 6, 500);
+    ledcWrite(i + 9, 500);
+    delay(1000);
+    ledcWrite(i, 0);
+    ledcWrite(i + 3, 0);
+    ledcWrite(i + 6, 0);
+    ledcWrite(i + 9, 0);
   }
 }
 
 void test_PWM(void)
 {
-  //test PWM with button
-  for(int i = 0; i < 4; i++)
+  // test PWM with button
+  for (int i = 0; i < 4; i++)
   {
-    if(digitalRead(button_pin[i]) == LOW)
+    if (bt[i].click())
     {
-      led_PWM(i,led_pwm[i]);
+      led_PWM(i, led_pwm[i]);
+      //led_PWM(i, {500,0,0});
+
     }
     else
     {
       led_PWM_Off(i);
     }
   }
+}
+
+void rainbow_led(){
+  //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
+  //La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
+
+  //génération de la séquence de couleur
+
+
 }
