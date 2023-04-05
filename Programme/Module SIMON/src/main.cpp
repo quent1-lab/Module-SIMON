@@ -43,6 +43,8 @@ void smooth_RGB(void);
 
 void test_all_led(void);
 void test_PWM(void);
+void reinitialize_color(int bt);
+void change_color(int bt,int R,int G,int B);
 
 String get_Client(int nclient);
 void json_mini_game();
@@ -112,7 +114,7 @@ const int pin_bt_BT1 = 34;
 const int pin_bt_BT2 = 35;
 const int pin_bt_BT3 = 32;
 const int pin_bt_BT4 = 33;
-u_int8_t button_pin[4] = {pin_bt_BT1, pin_bt_BT2, pin_bt_BT3, pin_bt_BT4};
+u_int8_t button_pin[4] = {pin_bt_BT3, pin_bt_BT1, pin_bt_BT2, pin_bt_BT4};
 
 // Let's define the pins of the leds
 const int pin_led_BT1[3] = {23, 22, 21};
@@ -125,6 +127,7 @@ int led_pin[4][3] = {{pin_led_BT1[0], pin_led_BT1[1], pin_led_BT1[2]},
                      {pin_led_BT3[0], pin_led_BT3[1], pin_led_BT3[2]},
                      {pin_led_BT4[0], pin_led_BT4[1], pin_led_BT4[2]}};
 int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
+int led_color[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
 
 // Variable button delay definitions
@@ -161,14 +164,14 @@ unsigned long int time_delay_led = 0;
 int delay_seq = 2000;
 
 int level = 0;
-int level_max = 20;
+int level_max = 5;
 int error = 0;
 int sequence_number = 0;
 int order_bt = 0;
 int difficulty = 0;
 
 // System variables
-int state_system = TEST;
+int state_system = INIT;
 int state_game = 0;
 
 void setup()
@@ -232,15 +235,16 @@ void loop()
       led_PWM_Off(BLEU);
       state_system = GAME;
       state_game = ERR;
+      delay(1000);              // Wait 1 second
       time_seq = millis();
       time_delay_led = millis();
     }
 
     break;
   case TEST:
-    //test_PWM();
+    test_PWM();
     //test_all_led();
-    smooth_RGB();
+    //smooth_RGB();
     break;
   case GAME:
     switch (state_game)
@@ -264,7 +268,7 @@ void loop()
       error_Answer(1000);
       break;
     case WIN:
-      rainbow_led();
+      smooth_RGB();
       break;
     }
     break;
@@ -335,7 +339,7 @@ void json_mini_game()
   payload.trim();
   payload.remove(0, 1);
   payload.toCharArray(json, payload.length() + 1);
-  Serial.println(json);
+  //Serial.println(json);
 
   StaticJsonDocument<200> doc;
   deserializeJson(doc, json);
@@ -345,7 +349,7 @@ void json_mini_game()
   mini_game[2] = doc["nv"];
   mini_game[3] = doc["mode_jeu"];
 
-  Serial.println(mini_game[0]);
+  //Serial.println(mini_game[0]);
 }
 
 void update_mini_game()
@@ -374,7 +378,7 @@ void server()
     break;
   case 1:
     // wait 500ms to avoid errors
-    if (millis() - server_time > 500)
+    if (millis() - server_time > 250)
     {
       server_state_system = 2;
     }
@@ -448,7 +452,8 @@ bool sequence_led(int num_seq)
   {
     if (millis() - time_delay_led < 800)
     {
-      led_PWM(led_place[sequence[sequence_number]], led_pwm[led_place[sequence[sequence_number]]]);
+      reinitialize_color(sequence[sequence_number]);
+      led_PWM(sequence[sequence_number], led_pwm[led_place[sequence[sequence_number]]]);
       return false;
     }
     else if (millis() - time_delay_led > 1300)
@@ -475,7 +480,7 @@ void led_PWM(int led_num, int pwm[3])
   // This function allows you to make a sequence of leds according to the level of difficulty
   for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_num * 3 + i, pwm[i]);
+    ledcWrite(led_place[led_num]  * 3 + i, pwm[i]);
   }
 }
 
@@ -484,8 +489,8 @@ void led_PWM_Off(int led_num)
   // This function allows you to make a sequence of leds according to the level of difficulty
   for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_num * 3 + i, 0);
-    led_pwm[led_num][i] = 0;
+    ledcWrite(led_place[led_num] * 3 + i, 0);
+    led_pwm[led_place[led_num] ][i] = 0;
   }
 }
 
@@ -496,6 +501,7 @@ void player_answer()
   {
     if (digitalRead(button_pin[k]) == LOW)
     {
+      reinitialize_color(k);
       led_PWM(k, led_pwm[k]);
     }
     else
@@ -520,6 +526,10 @@ void player_answer()
       if (k == answer[order_bt])
       {
         order_bt++;
+        for (int k = 0; k < 4; k++)
+        {
+          led_PWM_Off(k);
+        }
         if (order_bt > level)
         {
           order_bt = 0;
@@ -558,6 +568,7 @@ void error_Answer(int delay)
   {
     for (int k = 0; k < 4; k++)
     {
+      change_color(k, 1020, 1020, 1020);
       led_PWM(k, led_pwm[k]);
     }
   }
@@ -566,6 +577,7 @@ void error_Answer(int delay)
     for (int k = 0; k < 4; k++)
     {
       led_PWM_Off(k);
+      
     }
     order_bt = 0;
     level = 0;
@@ -574,7 +586,11 @@ void error_Answer(int delay)
       error = 0;
       state_system = INIT;
       algo_led_random();
-      algo_answer();
+      algo_answer(); 
+      for (int k = 0; k < 4; k++)
+      {
+        reinitialize_color(k);
+      }
     }
     state_game = SEQ;
     time_seq = millis();
@@ -673,8 +689,11 @@ void test_PWM(void)
   {
     if (bt[i].click())
     {
+      reinitialize_color(i);
       led_PWM(i, led_pwm[i]);
+      Serial.printf("bouton %d\n", i);
       //led_PWM(i, {500,0,0});
+      delay(1000);
 
     }
     else
@@ -684,11 +703,25 @@ void test_PWM(void)
   }
 }
 
+void reinitialize_color(int bt)
+{
+  // change color with button
+  for (int i = 0; i < 3; i++)
+  {
+    led_pwm[led_place[bt]][i] = led_color[led_place[bt]][i];
+  }
+}
+
+void change_color (int bt,int R,int G,int B){
+  // change color with button
+  led_pwm[bt][0] = R;
+  led_pwm[bt][1] = G;
+  led_pwm[bt][2] = B;
+}
+
 void rainbow_led(){
   //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
   //La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
 
   //génération de la séquence de couleur
-
-
 }
