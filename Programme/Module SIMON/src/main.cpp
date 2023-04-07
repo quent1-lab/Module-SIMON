@@ -242,9 +242,9 @@ void loop()
 
     break;
   case TEST:
-    test_PWM();
+    //test_PWM();
     //test_all_led();
-    //smooth_RGB();
+    smooth_RGB();
     break;
   case GAME:
     switch (state_game)
@@ -540,7 +540,11 @@ void player_answer()
           {
             request(3, "0");
             level = 0;
-            state_system = INIT;
+            state_system = WIN;
+            for (int k = 0; k < 4; k++)
+            {
+              reinitialize_color(k);
+            }
             algo_led_random();
             algo_answer();
           }
@@ -551,6 +555,7 @@ void player_answer()
       {
         error++;
         order_bt = 0;
+        algo_led_random();
         algo_answer();
         time_seq = millis();
         time_delay_led = millis();
