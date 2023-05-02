@@ -22,42 +22,43 @@ void Bouton::begin(int pin, bool type_bt, int delay_click, int delay_press, int 
     DELAY_RESET = 2500;
     TYPE = type_bt;
     TIME_BT = millis();
+    STATE = 0;
 }
 
 void Bouton::read_Bt()
 {
     timer_reset();
-    if (d_read() == !TYPE && ETAT == 0)
+    if (d_read() == !TYPE && STATE == 0)
     {
-        ETAT = 1;
+        STATE = 1;
         reset();
     }
-    if (d_read() == !TYPE && ETAT == 1 && timer(DELAY_PRESS))
+    if (d_read() == !TYPE && STATE == 1 && timer(DELAY_PRESS))
     {
-        ETAT = 3;
+        STATE = 3;
         return;
     }
-    else if (d_read() == TYPE && ETAT == 1 && timer(DELAY_CLICK))
+    else if (d_read() == TYPE && STATE == 1 && timer(DELAY_CLICK))
     {
-        ETAT = 2;
+        STATE = 2;
         return;
     }
 }
 
-bool Bouton::click()
+bool Bouton::isCliked()
 {
-    if (ETAT == 2)
+    if (STATE == 2)
     {
-        ETAT = 0;
+        STATE = 0;
         return true;
     } else return false;
 }
 
-bool Bouton::press()
+bool Bouton::isPressed()
 {
-    if (ETAT == 3)
+    if (STATE == 3)
     {
-        ETAT = 0;
+        STATE = 0;
         reset();
         return true;
     } else return false;
@@ -81,11 +82,11 @@ bool Bouton::timer(int delay)
 }
 
 int Bouton::etat(){
-    return ETAT;
+    return STATE;
 }
 
 void Bouton::timer_reset(){
-    if(ETAT != 0 && timer(DELAY_RESET)){
-        ETAT = 0;
+    if(STATE != 0 && timer(DELAY_RESET)){
+        STATE = 0;
     }
 }

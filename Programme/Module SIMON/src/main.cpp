@@ -1,10 +1,10 @@
 /*
 This mini game is a module of the video game "No Talking and nobody explodes"
-The object of the game is to ANSroduce a sequence of LEDs by pressing the corresponding buttons in the defusing manual.
+The object of the game is to ANSroduce a sequence of LEDs by isPresseding the corresponding buttons in the defusing manual.
 The game is made up of 4 buttons and 4 leds.
 The JAUNE button launches the game.
 Then the game generates a sequence of random LEDs.
-The player must ANSroduce the sequence by pressing the corresponding buttons.
+The player must ANSroduce the sequence by isPresseding the corresponding buttons.
 If the player succeeds in the sequence, he advances to the next level.
 If the player fails, he must start the sequence again.
 The game has 5 difficulty levels.
@@ -131,8 +131,8 @@ int led_color[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
 
 // Variable button delay definitions
-int t_delay_click = 140;
-int t_delay_press = 1500;
+int t_delay_isCliked = 140;
+int t_delay_isPressed = 1500;
 int t_delay_bounce = 120;
 
 // Led variables and buttons
@@ -221,14 +221,14 @@ void loop()
     //update_mini_game();
     led_PWM(JAUNE, led_pwm[JAUNE]);
     led_PWM(BLEU, led_pwm[BLEU]);
-    if (bt[JAUNE].press())
+    if (bt[JAUNE].isPressed())
     {
       state_system = TEST;
       led_PWM_Off(JAUNE);
       led_PWM_Off(BLEU);
       // request(3, "1");
     }
-    if (bt[BLEU].press())
+    if (bt[BLEU].isPressed())
     {
       // request(3, "2");
       led_PWM_Off(JAUNE);
@@ -284,7 +284,7 @@ void setup_bt(int nb_bt)
   */
   for (int k = 0; k < nb_bt; k++)
   {
-    bt[k].begin(button_pin[k], LOW, t_delay_click, t_delay_press, t_delay_bounce);
+    bt[k].begin(button_pin[k], LOW, t_delay_isCliked, t_delay_isPressed, t_delay_bounce);
   }
 }
 
@@ -521,7 +521,7 @@ void player_answer()
 
   for (int k = 0; k < 4; k++)
   {
-    if (bt[k].click())
+    if (bt[k].isCliked())
     {
       if (k == answer[order_bt])
       {
@@ -692,7 +692,7 @@ void test_PWM(void)
   // test PWM with button
   for (int i = 0; i < 4; i++)
   {
-    if (bt[i].click())
+    if (bt[i].isCliked())
     {
       reinitialize_color(i);
       led_PWM(i, led_pwm[i]);
