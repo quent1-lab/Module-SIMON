@@ -122,18 +122,14 @@ const int pin_led_BT2[3] = {19, 18, 5};
 const int pin_led_BT3[3] = {17, 16, 4};
 const int pin_led_BT4[3] = {2, 15, 0}; // Cour-circuit le pin sd1 vers GPIO 0
 
+int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
+int led_color[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
+
 int led_pin[4][3] = {{pin_led_BT1[0], pin_led_BT1[1], pin_led_BT1[2]},
                      {pin_led_BT2[0], pin_led_BT2[1], pin_led_BT2[2]},
                      {pin_led_BT3[0], pin_led_BT3[1], pin_led_BT3[2]},
                      {pin_led_BT4[0], pin_led_BT4[1], pin_led_BT4[2]}};
-int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
-int led_color[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 u_int8_t led_place[4] = {ROUGE, BLEU, VERT, JAUNE};
-
-// Variable button delay definitions
-int t_delay_isCliked = 140;
-int t_delay_isPressed = 1500;
-int t_delay_bounce = 120;
 
 // Led variables and buttons
 unsigned long int led_time[4] = {0, 0, 0, 0};
@@ -156,6 +152,11 @@ int color[4][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
   3: Left button
   4: Right button
 */
+
+// Variable button delay definitions
+int t_delay_isCliked = 140;
+int t_delay_isPressed = 1500;
+int t_delay_bounce = 120;
 
 // Time variables
 unsigned long int time_seq = 0;
@@ -475,25 +476,6 @@ bool sequence_led(int num_seq)
   }
 }
 
-void led_PWM(int led_num, int pwm[3])
-{
-  // This function allows you to make a sequence of leds according to the level of difficulty
-  for (int i = 0; i < 3; i++)
-  {
-    ledcWrite(led_place[led_num]  * 3 + i, pwm[i]);
-  }
-}
-
-void led_PWM_Off(int led_num)
-{
-  // This function allows you to make a sequence of leds according to the level of difficulty
-  for (int i = 0; i < 3; i++)
-  {
-    ledcWrite(led_place[led_num] * 3 + i, 0);
-    led_pwm[led_place[led_num] ][i] = 0;
-  }
-}
-
 void player_answer()
 {
   // This function makes it possible to check the order of the led sequence according to the response of the player
@@ -602,9 +584,27 @@ void error_Answer(int delay)
   }
 }
 
+void led_PWM(int led_num, int pwm[3])
+{
+  // This function allows you to make a sequence of leds according to the level of difficulty
+  for (int i = 0; i < 3; i++)
+  {
+    ledcWrite(led_place[led_num]  * 3 + i, pwm[i]);
+  }
+}
+
+void led_PWM_Off(int led_num)
+{
+  // This function allows you to make a sequence of leds according to the level of difficulty
+  for (int i = 0; i < 3; i++)
+  {
+    ledcWrite(led_place[led_num] * 3 + i, 0);
+    led_pwm[led_place[led_num] ][i] = 0;
+  }
+}
+
 void smooth_RGB()
 {
-  //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
   for (int i = 0; i < 3; i++)
   {
     for (int j = 0; j < 256; j++)
@@ -631,7 +631,6 @@ void smooth_RGB()
   {
     led_PWM_Off(k);
   }
-
 }
 
 void algo_led_random()
