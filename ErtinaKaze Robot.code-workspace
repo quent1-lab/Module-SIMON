@@ -1,0 +1,30 @@
+{
+	"folders": [
+		{
+			"path": "../../Robotique/ErtinaKaze Robot/ErtinaKaze Robot"
+		},
+		{
+			"name": "Chrono",
+			"path": "../../../../PlatformIO/Projects/Chrono"
+		},
+		{
+			"name": "Test ESp now",
+			"path": "../../../../PlatformIO/Projects/Test ESp now"
+		},
+		{
+			"name": "Module SIMON",
+			"path": "Programme/Module SIMON"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.tcc": "cpp",
+			"chrono": "cpp",
+			"cmath": "cpp",
+			"numeric": "cpp",
+			"ratio": "cpp",
+			"cinttypes": "cpp",
+			"cstdlib": "cpp"
+		}
+	}
+}
