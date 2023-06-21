@@ -16,54 +16,10 @@ The game is over when the player reaches level 5.
 
 #include <Arduino.h>
 #include "Bouton.h"
-#include <HTTPClient.h>
-#include <WiFi.h>
-#include <esp_now.h>
-#include "ArduinoJson.h"
 #include "rgb_lcd.h"
 
-typedef struct struct_message
-{
-  char a[32];
-  int erreur;
-  int timer;
-  int timer_value;
-  int module;
-  int difficulty;
-  int level[2];
-  int condo;
-  char num_serie[6];
-  bool start;
-  int bouton;
-  bool game_over;
-  bool victory;
-} struct_message;
-
-struct_message myData;
-struct_message dataRecv;
-/*
-uint8_t simonAddress[] = {0x10, 0x97, 0xBD, 0xD2, 0x9B, 0x54};
-uint8_t labyrintheAddress[] = {0xC8, 0xF0, 0x9E, 0x2C, 0x12, 0xC8};
-uint8_t chronoAddress[] = {0xC8, 0xF0, 0x9E, 0x2B, 0xF7, 0x44};
-*/
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-esp_now_peer_info_t peerInfo;
-
-// callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-}
-
-void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
-{
-  memcpy(&dataRecv, incomingData, sizeof(dataRecv));
-}
 
 Bouton bt[4];
-HTTPClient client[4];
 rgb_lcd lcd;
 
 // Function prototype
@@ -86,14 +42,7 @@ void smooth_RGB(void);
 void test_all_led(void);
 void test_PWM(void);
 void reinitialize_color(int bt);
-void change_color(int bt, int R, int G, int B);
-
-String get_Client(int nclient);
-void json_mini_game();
-void update_mini_game();
-void server();
-void request(int nclient, String data);
-String encode_json_data();
+void change_color(int bt,int R,int G,int B);
 
 #define ROUGE 0
 #define BLEU 1
@@ -128,30 +77,15 @@ String encode_json_data();
 #define INIT 0
 #define TEST 1
 #define GAME 2
-#define END 3
-#define MAZE 5
 
 #define SEQ 0
 #define ANS 1
 #define ERR 2
 #define WIN 3
 
-// Definitions of WiFi variables
-const char *ssid = "POCO_QT1";
-const char *pass = "Oul0uCoupTer4321";
-
-// byte mac_addr[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-int id_mini_game = 101;
-// Server variable definitions
-String url[4] = {"http://192.168.66.63/get_system_data.php?id=" + String(id_mini_game), // A modifier
-                 "http://192.168.66.63/add_mini_game.php?id_mini_game=" + String(id_mini_game),
-                 "http://192.168.66.63/get_json_data.php?json=",
-                 "http://192.168.137.1/database/request.php?mode_jeu="};
 int mini_game[4] = {0, 0, 0, 1};
 // mini_game: 1st index: id_module, 2nd index: level_max, 3rd index: level, 4th index: mode_jeu
 int server_state_system = 0;
-unsigned long int server_time = 0;
-bool first_connection = true;
 
 // Let's define the pins of the buttons
 const int pin_bt_BT1 = 34;
@@ -237,92 +171,23 @@ void setup()
   Serial.begin(115200);
   delay(1000);
 
-  WiFi.mode(WIFI_STA); // Optional
-  WiFi.begin(ssid, pass);
-  Serial.println("\nConnecting");
-
-  client[0].begin(url[0]);
-  client[1].begin(url[1]);
-
-   	// Init ESP-NOW
- 	if (esp_now_init() != ESP_OK) {
- 			Serial.println(F("Error initializing ESP-NOW"));
- 			return;
- 	}
- 	Serial.print(F("Reciever initialized : "));
- 	Serial.println(WiFi.macAddress());
- 	
- 	// Define callback functions
- 	esp_now_register_send_cb(OnDataSent);
- 	esp_now_register_recv_cb(OnDataRecv);
- 	// Register peer
- 	esp_now_peer_info_t peerInfo;
- 	memcpy(peerInfo.peer_addr, broadcastAddress, 6);
- 	peerInfo.channel = 0;
- 	peerInfo.encrypt = false;
- 	// Add peer
- 	if (esp_now_add_peer(&peerInfo) != ESP_OK) {
- 			Serial.println(F("Failed to add peer"));
- 			return;
- 	}
-  // Register for send CB
-  
-  myData.erreur = 0;
-  myData.timer = 0;
-  myData.timer_value = 5;
-  myData.module = 0;
-  myData.difficulty = 0;
-  myData.level[0] = 0;
-  myData.level[1] = 0;
-  myData.condo = 0;
-  myData.start = 0;
 }
 
 void loop()
 {
-  //OnDataRecv(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
   read_bt(4);
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    if (first_connection)
-    {
-      first_connection = false;
-      request(1, "1");
-    }
-    server();
-  }
-
-  if(myData.victory == 1){
-    state_game = WIN;
-  }
-  if(myData.game_over == 1){
-    state_game = ERR;
-  }
-  //Serial.println(myData.start);
   switch (state_system)
   {
   case INIT:
-    // update_mini_game();
+    //update_mini_game();
     led_PWM(JAUNE, led_pwm[JAUNE]);
     led_PWM(BLEU, led_pwm[BLEU]);
     if (bt[JAUNE].isPressed())
     {
-      state_system = MAZE;
-      state_game = ERR;
+      state_system = TEST;
       led_PWM_Off(JAUNE);
       led_PWM_Off(BLEU);
-      delay(1000); // Wait 1
-      myData.start = 1;
-      myData.module = 1;
-      esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
-
-      if (result == ESP_OK) {
-        Serial.println("Sent with success");
-      }
-      else {
-        Serial.println("Error sending the data");
-      }
       // request(3, "1");
     }
     if (bt[BLEU].isPressed())
@@ -332,17 +197,15 @@ void loop()
       led_PWM_Off(BLEU);
       state_system = GAME;
       state_game = ERR;
-      delay(1000); // Wait 1
-      myData.start = 1;
-      myData.module = 2;
-      esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+      delay(1000);              // Wait 1 second
       time_seq = millis();
       time_delay_led = millis();
     }
+
     break;
   case TEST:
-    // test_PWM();
-    // test_all_led();
+    //test_PWM();
+    //test_all_led();
     smooth_RGB();
     break;
   case GAME:
@@ -371,46 +234,6 @@ void loop()
       break;
     }
     break;
-  case MAZE:
-    switch (state_game)
-    {
-    case SEQ:
-      for (int i = 0; i < 4; i++)
-      {
-        if (bt[i].isCliked())
-        {
-          myData.bouton = i+1;
-          esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
-        }
-      }
-      break;
-    case ANS:
-      player_answer();
-      break;
-    case ERR:
-      error_Answer(1000);
-      break;
-    case WIN:
-      smooth_RGB();
-      break;
-    }
-    break;
-  }
-
-  if(dataRecv.erreur != myData.erreur){
-    myData.erreur = dataRecv.erreur;
-  }
-  if(dataRecv.timer != myData.timer){
-    myData.timer = dataRecv.timer;
-  }
-  if(dataRecv.start != myData.start){
-    myData.start = dataRecv.start;
-  }
-  if(dataRecv.victory != myData.victory){
-    myData.victory = dataRecv.victory;
-  }
-  if(dataRecv.game_over != myData.game_over){
-    myData.game_over = dataRecv.game_over;
   }
 }
 
@@ -438,131 +261,6 @@ void read_bt(int nb_bt)
   {
     bt[k].read_Bt();
   }
-}
-
-String get_Client(int nclient)
-{
-  /*
-    Input : nclient : customer number (int)
-    Output : payload : customer data (String)
-    Description: This function is used to retrieve customer data
-  */
-  int httpCode = client[nclient].GET();
-
-  if (httpCode > 0)
-  {
-    return client[nclient].getString();
-  }
-  else
-  {
-    Serial.println("Error on HTTP request");
-    return "0";
-  }
-}
-
-void json_mini_game()
-{
-  /*
-    Input : none
-    Output : none
-    Description: This function is used to recover the data of the mini game
-  */
-  String payload = '{' + get_Client(0);
-
-  if (payload == "0")
-    return;
-
-  char json[payload.length() + 1];
-  payload.replace(" ", "");
-  payload.replace("\\", "");
-  payload.trim();
-  payload.remove(0, 1);
-  payload.toCharArray(json, payload.length() + 1);
-  // Serial.println(json);
-
-  StaticJsonDocument<200> doc;
-  deserializeJson(doc, json);
-
-  mini_game[0] = int(doc["time_game"]);
-  mini_game[1] = doc["nv_max"];
-  mini_game[2] = doc["nv"];
-  mini_game[3] = doc["mode_jeu"];
-
-  // Serial.println(mini_game[0]);
-}
-
-void update_mini_game()
-{
-  if (mini_game[1] != level_max)
-  {
-    level_max = mini_game[1];
-    algo_led_random();
-    algo_answer();
-  }
-  if (mini_game[3] != state_system)
-  {
-    // state_system = mini_game[3];
-  }
-}
-
-void server()
-{
-
-  switch (server_state_system)
-  {
-  case 0:
-    // get_Client(1);
-    server_state_system = 1;
-    server_time = millis();
-    break;
-  case 1:
-    // wait 500ms to avoid errors
-    if (millis() - server_time > 250)
-    {
-      server_state_system = 2;
-    }
-    break;
-  case 2:
-    json_mini_game();
-    request(2, encode_json_data());
-    server_state_system = 0;
-    break;
-  case 3:
-    if (state_system == 0)
-    {
-      server_state_system = 0;
-    }
-  default:
-    break;
-  }
-}
-
-void request(int nclient, String data)
-{
-  /*
-    Input : nclient : customer number (int)
-            data : data to send (String)
-    Output : none
-    Description: This function is used to send data to the client
-  */
-  url[nclient] += data;
-  client[nclient].begin(url[nclient]);
-  client[nclient].GET();
-  url[nclient].remove(url[nclient].length() - data.length());
-  client[nclient].end();
-}
-
-String encode_json_data()
-{
-  /*
-    Input : none
-    Output : none
-    Description: This function is used to encode the data to send to the client
-    //Example of the json data to send :
-    //{"id_mini_game":"1","difficulty":"1","state":"1","nv_max":"1","nv":"1","error":"1","button1":"1","button2":"1","button3":"1","button4":"1","led1_R":"1","led1_G":"1","led1_B":"1","led2_R":"1","led2_G":"1","led2_B":"1","led3_R":"1","led3_G":"1","led3_B":"1","led4_R":"1","led4_G":"1","led4_B":"1"}
-  */
-  String data = "{\"id_mini_game\":\"" + String(id_mini_game) + "\",\"difficulty\":\"" + String(difficulty) + "\",\"state\":\"" + String(state_system) + "\",\"nv_max\":\"" + String(level_max) + "\",\"nv\":\"" + String(level) + "\",\"error\":\"" + String(error) + "\",\"button1\":\"" + String(bt[0].etat()) + "\",\"button2\":\"" + String(bt[1].etat()) + "\",\"button3\":\"" + String(bt[2].etat()) + "\",\"button4\":\"" + String(bt[3].etat()) + "\",\"led1_R\":\"" + String(led_pwm[0][0]) + "\",\"led1_G\":\"" + String(led_pwm[0][1]) + "\",\"led1_B\":\"" + String(led_pwm[0][2]) + "\",\"led2_R\":\"" + String(led_pwm[1][0]) + "\",\"led2_G\":\"" + String(led_pwm[1][1]) + "\",\"led2_B\":\"" + String(led_pwm[1][2]) + "\",\"led3_R\":\"" + String(led_pwm[2][0]) + "\",\"led3_G\":\"" + String(led_pwm[2][1]) + "\",\"led3_B\":\"" + String(led_pwm[2][2]) + "\",\"led4_R\":\"" + String(led_pwm[3][0]) + "\",\"led4_G\":\"" + String(led_pwm[3][1]) + "\",\"led4_B\":\"" + String(led_pwm[3][2]) + "\"}";
-  return data;
 }
 
 void setup_led(int nb_led)
@@ -658,7 +356,6 @@ void player_answer()
           time_seq = millis();
           if (level >= level_max)
           {
-            request(3, "0");
             level = 0;
             state_system = WIN;
             for (int k = 0; k < 4; k++)
@@ -668,7 +365,6 @@ void player_answer()
             algo_led_random();
             algo_answer();
           }
-          request(2, String(level));
         }
       }
       else
@@ -680,7 +376,6 @@ void player_answer()
         time_seq = millis();
         time_delay_led = millis();
         state_game = ERR;
-        esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
       }
     }
   }
@@ -703,6 +398,7 @@ void error_Answer(int delay)
     for (int k = 0; k < 4; k++)
     {
       led_PWM_Off(k);
+      
     }
     order_bt = 0;
     level = 0;
@@ -711,7 +407,7 @@ void error_Answer(int delay)
       error = 0;
       state_system = INIT;
       algo_led_random();
-      algo_answer();
+      algo_answer(); 
       for (int k = 0; k < 4; k++)
       {
         reinitialize_color(k);
@@ -727,7 +423,7 @@ void led_PWM(int led_num, int pwm[3])
   // This function allows you to make a sequence of leds according to the level of difficulty
   for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_place[led_num] * 3 + i, pwm[i]);
+    ledcWrite(led_place[led_num]  * 3 + i, pwm[i]);
   }
 }
 
@@ -737,7 +433,7 @@ void led_PWM_Off(int led_num)
   for (int i = 0; i < 3; i++)
   {
     ledcWrite(led_place[led_num] * 3 + i, 0);
-    led_pwm[led_place[led_num]][i] = 0;
+    led_pwm[led_place[led_num] ][i] = 0;
   }
 }
 
@@ -834,8 +530,9 @@ void test_PWM(void)
       reinitialize_color(i);
       led_PWM(i, led_pwm[i]);
       Serial.printf("bouton %d\n", i);
-      // led_PWM(i, {500,0,0});
+      //led_PWM(i, {500,0,0});
       delay(1000);
+
     }
     else
     {
@@ -853,18 +550,16 @@ void reinitialize_color(int bt)
   }
 }
 
-void change_color(int bt, int R, int G, int B)
-{
+void change_color (int bt,int R,int G,int B){
   // change color with button
   led_pwm[bt][0] = R;
   led_pwm[bt][1] = G;
   led_pwm[bt][2] = B;
 }
 
-void rainbow_led()
-{
-  // Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
-  // La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
+void rainbow_led(){
+  //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
+  //La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
 
-  // génération de la séquence de couleur
+  //génération de la séquence de couleur
 }
