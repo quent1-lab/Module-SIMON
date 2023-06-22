@@ -29,10 +29,18 @@ uint8_t chronoAddress[] = {0xC8, 0xF0, 0x9E, 0x2B, 0xF7, 0x44};
 
 typedef struct struct_message
 {
-  char a[32];
-  int b;
-  float c;
-  bool d;
+  int erreur;
+  int timer;
+  int timer_value;
+  int module;
+  int difficulty;
+  int level[2];
+  int condo;
+  char num_serie[6];
+  bool start;
+  int bouton;
+  bool game_over;
+  bool victory;
 } struct_message;
 
 // Create a struct_message called myData
@@ -51,11 +59,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
 {
   memcpy(&dataRecv, incomingData, sizeof(dataRecv));
-  Serial.print("\r\nBytes received: ");
-  Serial.println(len);
-  Serial.print("From slave: ");
-  Serial.println(dataRecv.a);
-  Serial.println();
 }
 
 Bouton bt[4];
@@ -116,6 +119,7 @@ void change_color(int bt, int R, int G, int B);
 #define INIT 0
 #define TEST 1
 #define GAME 2
+#define MAZE 3
 
 #define SEQ 0
 #define ANS 1
@@ -210,6 +214,18 @@ void setup()
   Serial.begin(115200);
   delay(1000);
 
+  myData.timer_value = 5;
+  myData.erreur = 0;
+  myData.start = false;
+  myData.game_over = false;
+  myData.victory = false;
+  myData.module = 0;
+  dataRecv.timer = 5;
+  dataRecv.erreur = 0;
+  dataRecv.start = false;
+  dataRecv.game_over = false;
+  dataRecv.victory = false;
+
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
@@ -242,43 +258,26 @@ void loop()
 {
   read_bt(4);
 
-  strcpy(myData.a, "THIS IS A CHAR");
-  myData.c = random(100, 200);
-  myData.d = false;
-
-  // Send message via ESP-NOW
-
-  /*if (dataRecv.c != myData.c)
+  if (dataRecv.erreur > myData.erreur)
   {
-    Serial.println("Received c");
-    Serial.println(dataRecv.c);
-    myData.c = dataRecv.c;
-  }*/
-
-  if (dataRecv.b != myData.b)
-  {
-    Serial.println("Received a");
-    Serial.println(dataRecv.b);
-    myData.b = dataRecv.b;
+    myData.erreur = dataRecv.erreur;
+    state_game = ERR;
   }
 
-  if (dataRecv.d != myData.d)
+  if (dataRecv.timer != myData.timer)
   {
-    Serial.println("Received d");
-    Serial.println(dataRecv.d);
-    myData.d = dataRecv.d;
+    myData.timer = dataRecv.timer;
   }
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
 
-  if (result == ESP_OK)
+  if (dataRecv.game_over > myData.game_over)
   {
-    Serial.println("Sent with success");
+    myData.game_over = dataRecv.game_over;
   }
-  else
+
+  if (dataRecv.victory > myData.victory)
   {
-    Serial.println("Error sending the data");
+    myData.victory = dataRecv.victory;
   }
-  delay(2000);
 
   switch (state_system)
   {
@@ -288,10 +287,26 @@ void loop()
     led_PWM(BLEU, led_pwm[BLEU]);
     if (bt[JAUNE].isPressed())
     {
-      state_system = TEST;
+      state_system = MAZE;
+      state_game = ERR;
       led_PWM_Off(JAUNE);
       led_PWM_Off(BLEU);
       // request(3, "1");
+      myData.start = true;
+      myData.module = 2;
+      esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+      if (result == ESP_OK)
+      {
+        Serial.println("Sent with success");
+      }
+      else
+      {
+        Serial.println("Error sending the data");
+      }
+      delay(1000); // Wait 1 second
+      time_seq = millis();
+      time_delay_led = millis();
     }
     if (bt[BLEU].isPressed())
     {
@@ -300,6 +315,18 @@ void loop()
       led_PWM_Off(BLEU);
       state_system = GAME;
       state_game = ERR;
+      myData.start = true;
+      myData.module = 1;
+      esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+      if (result == ESP_OK)
+      {
+        Serial.println("Sent with success");
+      }
+      else
+      {
+        Serial.println("Error sending the data");
+      }
       delay(1000); // Wait 1 second
       time_seq = millis();
       time_delay_led = millis();
