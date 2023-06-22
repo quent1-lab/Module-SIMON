@@ -17,7 +17,46 @@ The game is over when the player reaches level 5.
 #include <Arduino.h>
 #include "Bouton.h"
 #include "rgb_lcd.h"
+#include <WiFi.h>
+#include <esp_now.h>
 
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+/*
+uint8_t simonAddress[] = {0x10, 0x97, 0xBD, 0xD2, 0x9B, 0x54};
+uint8_t labyrintheAddress[] = {0xC8, 0xF0, 0x9E, 0x2C, 0x12, 0xC8};
+uint8_t chronoAddress[] = {0xC8, 0xF0, 0x9E, 0x2B, 0xF7, 0x44};
+*/
+
+typedef struct struct_message
+{
+  char a[32];
+  int b;
+  float c;
+  bool d;
+} struct_message;
+
+// Create a struct_message called myData
+struct_message myData;
+struct_message dataRecv;
+
+esp_now_peer_info_t peerInfo;
+
+// callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
+{
+  memcpy(&dataRecv, incomingData, sizeof(dataRecv));
+  Serial.print("\r\nBytes received: ");
+  Serial.println(len);
+  Serial.print("From slave: ");
+  Serial.println(dataRecv.a);
+  Serial.println();
+}
 
 Bouton bt[4];
 rgb_lcd lcd;
@@ -42,7 +81,7 @@ void smooth_RGB(void);
 void test_all_led(void);
 void test_PWM(void);
 void reinitialize_color(int bt);
-void change_color(int bt,int R,int G,int B);
+void change_color(int bt, int R, int G, int B);
 
 #define ROUGE 0
 #define BLEU 1
@@ -171,16 +210,80 @@ void setup()
   Serial.begin(115200);
   delay(1000);
 
+  // Set device as a Wi-Fi Station
+  WiFi.mode(WIFI_STA);
+
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK)
+  {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // get the status of Trasnmitted packet
+  esp_now_register_send_cb(OnDataSent);
+  esp_now_register_recv_cb(OnDataRecv);
+
+  // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  // Add peer
+  if (esp_now_add_peer(&peerInfo) != ESP_OK)
+  {
+    Serial.println("Failed to add peer");
+    return;
+  }
 }
 
 void loop()
 {
   read_bt(4);
 
+  strcpy(myData.a, "THIS IS A CHAR");
+  myData.c = random(100, 200);
+  myData.d = false;
+
+  // Send message via ESP-NOW
+
+  /*if (dataRecv.c != myData.c)
+  {
+    Serial.println("Received c");
+    Serial.println(dataRecv.c);
+    myData.c = dataRecv.c;
+  }*/
+
+  if (dataRecv.b != myData.b)
+  {
+    Serial.println("Received a");
+    Serial.println(dataRecv.b);
+    myData.b = dataRecv.b;
+  }
+
+  if (dataRecv.d != myData.d)
+  {
+    Serial.println("Received d");
+    Serial.println(dataRecv.d);
+    myData.d = dataRecv.d;
+  }
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+  if (result == ESP_OK)
+  {
+    Serial.println("Sent with success");
+  }
+  else
+  {
+    Serial.println("Error sending the data");
+  }
+  delay(2000);
+
   switch (state_system)
   {
   case INIT:
-    //update_mini_game();
+    // update_mini_game();
     led_PWM(JAUNE, led_pwm[JAUNE]);
     led_PWM(BLEU, led_pwm[BLEU]);
     if (bt[JAUNE].isPressed())
@@ -197,15 +300,15 @@ void loop()
       led_PWM_Off(BLEU);
       state_system = GAME;
       state_game = ERR;
-      delay(1000);              // Wait 1 second
+      delay(1000); // Wait 1 second
       time_seq = millis();
       time_delay_led = millis();
     }
 
     break;
   case TEST:
-    //test_PWM();
-    //test_all_led();
+    // test_PWM();
+    // test_all_led();
     smooth_RGB();
     break;
   case GAME:
@@ -398,7 +501,6 @@ void error_Answer(int delay)
     for (int k = 0; k < 4; k++)
     {
       led_PWM_Off(k);
-      
     }
     order_bt = 0;
     level = 0;
@@ -407,7 +509,7 @@ void error_Answer(int delay)
       error = 0;
       state_system = INIT;
       algo_led_random();
-      algo_answer(); 
+      algo_answer();
       for (int k = 0; k < 4; k++)
       {
         reinitialize_color(k);
@@ -423,7 +525,7 @@ void led_PWM(int led_num, int pwm[3])
   // This function allows you to make a sequence of leds according to the level of difficulty
   for (int i = 0; i < 3; i++)
   {
-    ledcWrite(led_place[led_num]  * 3 + i, pwm[i]);
+    ledcWrite(led_place[led_num] * 3 + i, pwm[i]);
   }
 }
 
@@ -433,7 +535,7 @@ void led_PWM_Off(int led_num)
   for (int i = 0; i < 3; i++)
   {
     ledcWrite(led_place[led_num] * 3 + i, 0);
-    led_pwm[led_place[led_num] ][i] = 0;
+    led_pwm[led_place[led_num]][i] = 0;
   }
 }
 
@@ -530,9 +632,8 @@ void test_PWM(void)
       reinitialize_color(i);
       led_PWM(i, led_pwm[i]);
       Serial.printf("bouton %d\n", i);
-      //led_PWM(i, {500,0,0});
+      // led_PWM(i, {500,0,0});
       delay(1000);
-
     }
     else
     {
@@ -550,16 +651,18 @@ void reinitialize_color(int bt)
   }
 }
 
-void change_color (int bt,int R,int G,int B){
+void change_color(int bt, int R, int G, int B)
+{
   // change color with button
   led_pwm[bt][0] = R;
   led_pwm[bt][1] = G;
   led_pwm[bt][2] = B;
 }
 
-void rainbow_led(){
-  //Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
-  //La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
+void rainbow_led()
+{
+  // Cette fonction génère une séquence de toutes les nuances de couleurs pour les leds afin de faire un arc-en-ciel
+  // La premiere couleur est rouge, puis orange, puis jaune, puis vert, puis bleu, puis violet
 
-  //génération de la séquence de couleur
+  // génération de la séquence de couleur
 }
