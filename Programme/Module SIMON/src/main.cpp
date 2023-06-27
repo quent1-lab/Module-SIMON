@@ -119,7 +119,8 @@ void change_color(int bt, int R, int G, int B);
 #define INIT 0
 #define TEST 1
 #define GAME 2
-#define MAZE 3
+#define MAZE 6
+#define WAIT 7
 
 #define SEQ 0
 #define ANS 1
@@ -135,7 +136,7 @@ const int pin_bt_BT1 = 34;
 const int pin_bt_BT2 = 35;
 const int pin_bt_BT3 = 32;
 const int pin_bt_BT4 = 33;
-u_int8_t button_pin[4] = {pin_bt_BT3, pin_bt_BT1, pin_bt_BT2, pin_bt_BT4};
+u_int8_t button_pin[4] = {pin_bt_BT2, pin_bt_BT1, pin_bt_BT4, pin_bt_BT3};
 
 // Let's define the pins of the leds
 const int pin_led_BT1[3] = {23, 22, 21};
@@ -183,18 +184,23 @@ int t_delay_bounce = 120;
 unsigned long int time_seq = 0;
 unsigned long int time_ans = 0;
 unsigned long int time_delay_led = 0;
+unsigned long int timeVictoire = 0;
 int delay_seq = 2000;
 
 int level = 0;
-int level_max = 5;
+int level_max = 2;
 int error = 0;
 int sequence_number = 0;
 int order_bt = 0;
 int difficulty = 0;
 
 // System variables
-int state_system = INIT;
+int state_system = WAIT;
 int state_game = 0;
+
+bool start = false;
+bool game_over = false;
+bool victory = false;
 
 void setup()
 {
@@ -225,6 +231,8 @@ void setup()
   dataRecv.start = false;
   dataRecv.game_over = false;
   dataRecv.victory = false;
+  myData.difficulty = 0;
+  dataRecv.difficulty = 0;
 
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
@@ -258,10 +266,16 @@ void loop()
 {
   read_bt(4);
 
+  /*while(1){
+    read_bt(4);
+    test_PWM();
+  }*/
+
   if (dataRecv.erreur > myData.erreur)
   {
     myData.erreur = dataRecv.erreur;
     state_game = ERR;
+    error = myData.erreur;
   }
 
   if (dataRecv.timer != myData.timer)
@@ -272,12 +286,73 @@ void loop()
   if (dataRecv.game_over > myData.game_over)
   {
     myData.game_over = dataRecv.game_over;
+    game_over = myData.game_over;
   }
 
   if (dataRecv.victory > myData.victory)
   {
     myData.victory = dataRecv.victory;
+    victory = myData.victory;
+    state_game = WIN;
+    state_system = GAME;
+    timeVictoire = millis();
   }
+
+  if (dataRecv.difficulty > myData.difficulty)
+  {
+    myData.difficulty = dataRecv.difficulty;
+    difficulty = myData.difficulty;
+  }
+
+  if (dataRecv.level[0] != myData.level[0])
+  {
+    myData.level[0] = dataRecv.level[0];
+    state_system = INIT;
+  }
+
+  if (dataRecv.module != myData.module)
+  {
+    myData.module = dataRecv.module;
+    if (myData.module == 1)
+    {
+      state_system = GAME;
+      state_game = ERR;
+      time_seq = millis();
+      time_delay_led = millis();
+    }
+    else if (myData.module == 2)
+    {
+      state_system = MAZE;
+    }
+  }
+
+  if (myData.game_over == true)
+  {
+    myData.start = false;
+  }
+
+  if (myData.victory == true)
+  {
+    myData.start = false;
+  }
+
+  if (victory)
+  {
+
+    digitalWrite(14, HIGH);
+    smooth_RGB();
+    // timeVictoire = millis();
+    if (millis() > timeVictoire + 7000)
+    {
+      digitalWrite(14, LOW);
+      delay(400);
+      digitalWrite(14, HIGH);
+      ESP.restart();
+    }
+  }
+
+  // Serial.print("State system: ");
+  // Serial.println(state_system);
 
   switch (state_system)
   {
@@ -285,10 +360,10 @@ void loop()
     // update_mini_game();
     led_PWM(JAUNE, led_pwm[JAUNE]);
     led_PWM(BLEU, led_pwm[BLEU]);
-    if (bt[JAUNE].isPressed())
+    if (bt[JAUNE].isCliked())
     {
       state_system = MAZE;
-      state_game = ERR;
+      // state_game = MAZE;
       led_PWM_Off(JAUNE);
       led_PWM_Off(BLEU);
       // request(3, "1");
@@ -308,7 +383,7 @@ void loop()
       time_seq = millis();
       time_delay_led = millis();
     }
-    if (bt[BLEU].isPressed())
+    if (bt[BLEU].isCliked())
     {
       // request(3, "2");
       led_PWM_Off(JAUNE);
@@ -332,11 +407,16 @@ void loop()
       time_delay_led = millis();
     }
 
+    if (bt[VERT].isPressed())
+    {
+      state_system = TEST;
+    }
+
     break;
   case TEST:
-    // test_PWM();
+    test_PWM();
     // test_all_led();
-    smooth_RGB();
+    // smooth_RGB();
     break;
   case GAME:
     switch (state_game)
@@ -360,10 +440,93 @@ void loop()
       error_Answer(1000);
       break;
     case WIN:
+    {
+
+      if (myData.difficulty > 0)
+      {
+        myData.victory = true;
+        victory = true;
+        myData.start = false;
+        state_game = WAIT;
+        timeVictoire = millis();
+      }
+      else
+      {
+        myData.difficulty = 1;
+        myData.module = 2;
+        state_game = MAZE;
+      }
+      esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+      if (result == ESP_OK)
+      {
+        Serial.println("Sent with success");
+      }
+      else
+      {
+        Serial.println("Error sending the data");
+      }
       smooth_RGB();
-      break;
     }
     break;
+    }
+  case MAZE:
+  {
+    for (int i = 1; i < 5; i++)
+    {
+      if (bt[i - 1].isCliked())
+      {
+        Serial.println("Button pressed");
+        myData.bouton = i;
+        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+        if (result == ESP_OK)
+        {
+          Serial.println("Sent with success");
+        }
+        else
+        {
+          Serial.println("Error sending the data");
+        }
+      }
+    }
+  }
+  break;
+  case WAIT:
+    if (myData.level[0] == 1)
+    {
+      state_system = INIT;
+    }
+    break;
+  default:
+    state_system = INIT;
+    break;
+
+    // break;
+  }
+
+  if (myData.start == true && state_system == MAZE)
+  {
+    for (int i = 1; i < 5; i++)
+    {
+      read_bt(4);
+      Serial.println(i);
+      if (bt[i - 1].isCliked())
+      {
+        Serial.println("Button pressed");
+        myData.bouton = i;
+        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+        if (result == ESP_OK)
+        {
+          Serial.println("Sent with success");
+        }
+        else
+        {
+          Serial.println("Error sending the data");
+        }
+      }
+    }
   }
 }
 
@@ -487,7 +650,7 @@ void player_answer()
           if (level >= level_max)
           {
             level = 0;
-            state_system = WIN;
+            state_game = WIN;
             for (int k = 0; k < 4; k++)
             {
               reinitialize_color(k);
@@ -500,6 +663,10 @@ void player_answer()
       else
       {
         error++;
+        myData.erreur = error;
+        Serial.print("erreur send : ");
+        Serial.println(myData.erreur);
+        esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
         order_bt = 0;
         algo_led_random();
         algo_answer();
@@ -519,7 +686,7 @@ void error_Answer(int delay)
   {
     for (int k = 0; k < 4; k++)
     {
-      change_color(k, 1020, 1020, 1020);
+      change_color(k, 1020, 0, 0);
       led_PWM(k, led_pwm[k]);
     }
   }
@@ -541,6 +708,9 @@ void error_Answer(int delay)
       {
         reinitialize_color(k);
       }
+      myData.game_over = true;
+      esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+      ESP.restart();
     }
     state_game = SEQ;
     time_seq = millis();
@@ -594,6 +764,7 @@ void smooth_RGB()
   {
     led_PWM_Off(k);
   }
+  delay(1000);
 }
 
 void algo_led_random()
