@@ -144,6 +144,8 @@ const int pin_led_BT2[3] = {19, 18, 5};
 const int pin_led_BT3[3] = {17, 16, 4};
 const int pin_led_BT4[3] = {2, 15, 0}; // Cour-circuit le pin sd1 vers GPIO 0
 
+const int pin_F1 = 14;
+
 int led_pwm[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 int led_color[4][3] = {PWMROUGE, PWMBLEU, PWMVERT, PWMJAUNE};
 
@@ -188,7 +190,7 @@ unsigned long int timeVictoire = 0;
 int delay_seq = 2000;
 
 int level = 0;
-int level_max = 2;
+int level_max = 10;
 int error = 0;
 int sequence_number = 0;
 int order_bt = 0;
@@ -329,6 +331,8 @@ void loop()
   if (myData.game_over == true)
   {
     myData.start = false;
+    error = 3;
+    error_Answer(500);
   }
 
   if (myData.victory == true)
@@ -412,10 +416,20 @@ void loop()
       state_system = TEST;
     }
 
+    if (bt[ROUGE].isPressed())
+    {
+      led_PWM(ROUGE, led_pwm[ROUGE]);
+      digitalWrite(pin_F1, HIGH);
+      delay(150);
+      digitalWrite(pin_F1, LOW);
+      led_PWM_Off(ROUGE);
+    }
+    
+
     break;
   case TEST:
-    test_PWM();
-    // test_all_led();
+    //test_PWM();
+    test_all_led();
     // smooth_RGB();
     break;
   case GAME:
@@ -444,6 +458,7 @@ void loop()
 
       if (myData.difficulty > 0)
       {
+        digitalWrite(pin_F1, HIGH);
         myData.victory = true;
         victory = true;
         myData.start = false;
